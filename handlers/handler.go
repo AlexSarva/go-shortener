@@ -3,25 +3,18 @@ package handlers
 import (
 	"go-shortener/checker"
 	"go-shortener/generator"
+	"go-shortener/internal/app"
 	"io"
 	"log"
 	"net/http"
 	"strings"
-	"time"
 )
-
-type MyUrl struct {
-	ID      int
-	LongUrl string
-	Created time.Time
-}
-
-var Urls = make(map[string]MyUrl)
-var urlId int = 1
 
 const ShortLen int = 5
 
-func BodyHandler(w http.ResponseWriter, r *http.Request) {
+var database = app.InitDB()
+
+func MyHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		b, err := io.ReadAll(r.Body)
@@ -32,13 +25,7 @@ func BodyHandler(w http.ResponseWriter, r *http.Request) {
 		rawUrl := string(b)
 		if checker.CheckUrl(rawUrl) {
 			shortUrl := generator.ShortUrlGenerator(ShortLen)
-			var UrlData MyUrl
-			UrlData.ID = urlId
-			UrlData.LongUrl = rawUrl
-			UrlData.Created = time.Now()
-			Urls[shortUrl] = UrlData
-			urlId += 1
-
+			database.Insert(rawUrl, shortUrl)
 			w.Header().Set("content-type", "text/plain")
 			w.WriteHeader(http.StatusCreated)
 			log.Println("URL write to DB")
@@ -57,23 +44,23 @@ func BodyHandler(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodGet:
 		id := strings.TrimPrefix(r.URL.Path, "/")
-		res, er := Urls[id]
-		if er == false {
+		res, er := database.Get(id)
+		if er != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_, err := w.Write([]byte("No such shortlink!"))
 			if err != nil {
 				log.Println("Something wrong", err)
 			}
-		}
+		} else {
+			longUrl := res.RawUrl
+			w.Header().Set("content-type", "text/plain")
+			w.Header().Add("Location", longUrl)
+			w.WriteHeader(http.StatusTemporaryRedirect)
 
-		longUrl := res.LongUrl
-		w.Header().Set("content-type", "text/plain")
-		w.Header().Add("Location", longUrl)
-		w.WriteHeader(http.StatusTemporaryRedirect)
-
-		_, err := w.Write([]byte(longUrl))
-		if err != nil {
-			log.Println("Something wrong", err)
+			_, err := w.Write([]byte(longUrl))
+			if err != nil {
+				log.Println("Something wrong", err)
+			}
 		}
 
 	default:
