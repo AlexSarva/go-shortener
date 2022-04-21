@@ -12,8 +12,8 @@ import (
 )
 
 func InitDB() *storage.UrlLocalStorage {
-	Db := storage.NewUrlLocalStorage()
-	return Db
+	db := storage.NewUrlLocalStorage()
+	return db
 }
 
 type App struct {
