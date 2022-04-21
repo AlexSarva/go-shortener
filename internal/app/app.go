@@ -4,41 +4,64 @@ import (
 	"AlexSarva/go-shortener/handlers"
 	"AlexSarva/go-shortener/storage"
 	"context"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 )
 
 func InitDB() *storage.UrlLocalStorage {
-	db := storage.NewUrlLocalStorage()
-	return db
+	db := *storage.NewUrlLocalStorage()
+	return &db
 }
 
 type App struct {
-	Database   *storage.UrlLocalStorage
 	httpServer *http.Server
-	ServeMux   *http.ServeMux
+	router     *chi.Mux
 }
 
-func NewApp() *App {
-	db := *InitDB()
-	mux := *http.NewServeMux()
+func NewApp(port int) *App {
+	database := *InitDB()
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+
+	r.Get("/{id}", handlers.MyGetHandle(&database))
+	r.Post("/", handlers.MyPostHandle(&database))
+
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, nfErr := w.Write([]byte("route does not exist"))
+		if nfErr != nil {
+			log.Println(nfErr)
+		}
+	})
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, naErr := w.Write([]byte("sorry, only GET and POST methods are supported."))
+		if naErr != nil {
+			log.Println(naErr)
+		}
+	})
+
 	server := http.Server{
-		Addr:    "localhost:8080",
-		Handler: &mux,
+		Addr:    "localhost:" + strconv.Itoa(port),
+		Handler: r,
 	}
 	return &App{
-		Database:   &db,
-		ServeMux:   &mux,
 		httpServer: &server,
 	}
 }
 
 func (a *App) Run() error {
-	log.Println("Запуск веб-сервера на http://127.0.0.1:8080")
-	a.ServeMux.Handle("/", handlers.MakeHandler(a.Database))
+	addr := a.httpServer.Addr
+	log.Printf("Запуск веб-сервера на http://%s", addr)
 	go func() {
 		if err := a.httpServer.ListenAndServe(); err != nil {
 			log.Fatalf("Failed to listen and serve: %+v", err)
