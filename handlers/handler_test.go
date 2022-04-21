@@ -1,12 +1,12 @@
 package handlers_test
 
 import (
+	"AlexSarva/go-shortener/checker"
+	"AlexSarva/go-shortener/handlers"
+	"AlexSarva/go-shortener/internal/app"
 	"bytes"
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"go-shortener/checker"
-	"go-shortener/handlers"
-	"go-shortener/internal/app"
 	"io"
 	"net/http"
 	"net/http/httptest"

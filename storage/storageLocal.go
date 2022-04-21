@@ -1,9 +1,9 @@
 package storage
 
 import (
+	"AlexSarva/go-shortener/models"
 	"errors"
 	"github.com/google/uuid"
-	"go-shortener/models"
 	"sync"
 	"time"
 )

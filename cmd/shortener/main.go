@@ -1,7 +1,7 @@
 package main
 
 import (
-	"go-shortener/internal/app"
+	"AlexSarva/go-shortener/internal/app"
 	"log"
 )
 

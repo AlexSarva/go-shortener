@@ -1,9 +1,9 @@
 package app
 
 import (
+	"AlexSarva/go-shortener/handlers"
+	"AlexSarva/go-shortener/storage"
 	"context"
-	"go-shortener/handlers"
-	"go-shortener/storage"
 	"log"
 	"net/http"
 	"os"

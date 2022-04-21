@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"go-shortener/checker"
-	"go-shortener/generator"
-	"go-shortener/storage"
+	"AlexSarva/go-shortener/checker"
+	"AlexSarva/go-shortener/generator"
+	"AlexSarva/go-shortener/storage"
 	"io"
 	"log"
 	"net/http"

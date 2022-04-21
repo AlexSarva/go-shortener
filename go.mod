@@ -1,4 +1,4 @@
-module go-shortener
+module AlexSarva/go-shortener
 
 go 1.16
 
