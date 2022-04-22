@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"AlexSarva/go-shortener/checker"
-	"AlexSarva/go-shortener/generator"
 	"AlexSarva/go-shortener/storage"
+	"AlexSarva/go-shortener/utils"
 	"fmt"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"io"
 	"log"
 	"net/http"
@@ -25,7 +25,7 @@ func MyGetHandle(database *storage.UrlLocalStorage) http.HandlerFunc {
 			}
 		} else {
 			longUrl := res.RawUrl
-			w.Header().Set("content-type", "text/plain")
+			w.Header().Set("content-type", "text/plain; charset=utf-8")
 			w.Header().Add("Location", longUrl)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 
@@ -46,13 +46,13 @@ func MyPostHandle(database *storage.UrlLocalStorage) http.HandlerFunc {
 			log.Println(err.Error())
 		}
 		rawUrl := string(b)
-		if checker.CheckUrl(rawUrl) {
-			shortUrl := generator.ShortUrlGenerator(ShortLen)
+		if utils.ValidateUrl(rawUrl) {
+			shortUrl := utils.ShortUrlGenerator(ShortLen)
 			dbErr := database.Insert(rawUrl, shortUrl)
 			if dbErr != nil {
 				log.Println(dbErr)
 			}
-			w.Header().Set("content-type", "text/plain")
+			w.Header().Set("content-type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusCreated)
 			log.Println("URL write to DB")
 			_, err := w.Write([]byte("http://localhost:8080/" + shortUrl))
@@ -68,4 +68,31 @@ func MyPostHandle(database *storage.UrlLocalStorage) http.HandlerFunc {
 			log.Println("It's not Url!")
 		}
 	}
+}
+
+func MyHandler(database storage.UrlLocalStorage) *chi.Mux {
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+
+	r.Get("/{id}", MyGetHandle(&database))
+	r.Post("/", MyPostHandle(&database))
+
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, nfErr := w.Write([]byte("route does not exist"))
+		if nfErr != nil {
+			log.Println(nfErr)
+		}
+	})
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, naErr := w.Write([]byte("sorry, only GET and POST methods are supported."))
+		if naErr != nil {
+			log.Println(naErr)
+		}
+	})
+	return r
 }

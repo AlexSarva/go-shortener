@@ -45,3 +45,8 @@ func (s *UrlLocalStorage) Get(shortUrl string) (*models.Url, error) {
 	}
 	return urlInfo, nil
 }
+
+func InitDB() *UrlLocalStorage {
+	db := *NewUrlLocalStorage()
+	return &db
+}

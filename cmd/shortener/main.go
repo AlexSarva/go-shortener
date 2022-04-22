@@ -1,12 +1,14 @@
 package main
 
 import (
-	"AlexSarva/go-shortener/internal/app"
+	"AlexSarva/go-shortener/server"
+	"AlexSarva/go-shortener/storage"
 	"log"
 )
 
 func main() {
-	MainApp := app.NewApp(8080)
+	DB := *storage.InitDB()
+	MainApp := server.NewMyServer(8080, DB)
 	if err := MainApp.Run(); err != nil {
 		log.Fatalf("%s", err.Error())
 	}

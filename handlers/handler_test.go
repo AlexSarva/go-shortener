@@ -1,191 +1,235 @@
 package handlers_test
 
 import (
-	"AlexSarva/go-shortener/checker"
 	"AlexSarva/go-shortener/handlers"
-	"AlexSarva/go-shortener/internal/app"
+	"AlexSarva/go-shortener/storage"
+	"AlexSarva/go-shortener/utils"
 	"bytes"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-func TestMakeHandlerGet(t *testing.T) {
-	var database = app.InitDB()
-	database.Insert("https://codepen.io", "Hasfe")
+func TestMytHandler(t *testing.T) {
+	database := *storage.InitDB()
+	insErr := database.Insert("https://codepen.io", "Hasfe")
+	if insErr != nil {
+		log.Println(insErr)
+	}
 	type want struct {
-		code     int
-		location string
-		//response    string
-		contentType string
+		code           int
+		location       string
+		contentType    string
+		responseFormat bool
+		response       string
 	}
 
 	tests := []struct {
-		request string
-		name    string
-		want    want
+		name          string
+		request       string
+		requestMethod string
+		requestBody   string
+		want          want
 	}{
-		// TODO: Add test cases.
 		{
-			name:    "positive test #1",
-			request: "Hasfe",
+			name:          fmt.Sprintf("%s positive test #1", http.MethodGet),
+			request:       "Hasfe",
+			requestMethod: http.MethodGet,
 			want: want{
 				code:        http.StatusTemporaryRedirect,
 				location:    "https://codepen.io",
-				contentType: "text/plain",
+				contentType: "text/plain; charset=utf-8",
 			},
 		},
 		{
-			name:    "negative test #1",
-			request: "",
+			name:          fmt.Sprintf("%s negative test #1", http.MethodGet),
+			request:       "",
+			requestMethod: http.MethodGet,
 			want: want{
 				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name:    "negative test #2",
-			request: "sometext",
+			name:          fmt.Sprintf("%s negative test #2", http.MethodGet),
+			request:       "sometext",
+			requestMethod: http.MethodGet,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s positive test #1", http.MethodPost),
+			requestBody:   "https://codepen.io",
+			requestMethod: http.MethodPost,
+			want: want{
+				code:           http.StatusCreated,
+				responseFormat: true,
+				contentType:    "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s positive test #2", http.MethodPost),
+			requestBody:   "www.google.com",
+			requestMethod: http.MethodPost,
+			want: want{
+				code:           http.StatusCreated,
+				responseFormat: true,
+				contentType:    "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s positive test #3", http.MethodPost),
+			requestBody:   "www.url-with-querystring.com/?url=has-querystring",
+			requestMethod: http.MethodPost,
+			want: want{
+				code:           http.StatusCreated,
+				responseFormat: true,
+				contentType:    "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s negative test #1", http.MethodPost),
+			requestBody:   "https://codepen",
+			requestMethod: http.MethodPost,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s negative test #2", http.MethodPost),
+			requestBody:   "something",
+			requestMethod: http.MethodPost,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s negative test #3", http.MethodPost),
+			requestBody:   "",
+			requestMethod: http.MethodPost,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s negative test #1", http.MethodPut),
+			requestBody:   "something",
+			request:       "something",
+			requestMethod: http.MethodPut,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s negative test #1", http.MethodConnect),
+			requestBody:   "something",
+			request:       "something",
+			requestMethod: http.MethodConnect,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s negative test #1", http.MethodDelete),
+			requestBody:   "something",
+			request:       "something",
+			requestMethod: http.MethodDelete,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s negative test #1", http.MethodHead),
+			requestBody:   "something",
+			request:       "something",
+			requestMethod: http.MethodHead,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s negative test #1", http.MethodOptions),
+			requestBody:   "something",
+			request:       "something",
+			requestMethod: http.MethodOptions,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s negative test #1", http.MethodPatch),
+			requestBody:   "something",
+			request:       "something",
+			requestMethod: http.MethodPatch,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s negative test #1", http.MethodTrace),
+			requestBody:   "something",
+			request:       "something",
+			requestMethod: http.MethodTrace,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s negative test #1", "CUSTOM"),
+			requestBody:   "something",
+			request:       "something",
+			requestMethod: "CUSTOM",
 			want: want{
 				code: http.StatusBadRequest,
 			},
 		},
 	}
+
+	Handler := *handlers.MyHandler(database)
+	ts := httptest.NewServer(&Handler)
+	defer ts.Close()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, "/"+tt.request, nil)
+			reqBoby := []byte(tt.requestBody)
+			//var body = []byte(tt.requestBody)
+			reqUrl := "/" + tt.request
+			request := httptest.NewRequest(tt.requestMethod, reqUrl, bytes.NewBuffer(reqBoby))
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
-			// определяем хендлер
-			h := handlers.MakeHandler(database)
-			// запускаем сервер
-			h.ServeHTTP(w, request)
-			res := w.Result()
-			// проверяем код ответа
-			resStatusCode := res.StatusCode
+			Handler.ServeHTTP(w, request)
+			resp := w.Result()
+			// Проверяем StatusCode
+
+			respStatusCode := resp.StatusCode
 			wantStatusCode := tt.want.code
-			assert.Equal(t, resStatusCode, wantStatusCode, fmt.Errorf("expected StatusCode %d, got %d", wantStatusCode, resStatusCode))
+			assert.Equal(t, respStatusCode, wantStatusCode, fmt.Errorf("expected StatusCode %d, got %d", wantStatusCode, respStatusCode))
 
 			// Проверяем Location
-			resLocation := res.Header.Get("Location")
+			resLocation := resp.Header.Get("Location")
 			wantLocation := tt.want.location
-			assert.Equal(t, resLocation, wantLocation, fmt.Errorf("expected StatusCode %s, got %s", wantLocation, resLocation))
+			assert.Equal(t, resLocation, wantLocation, fmt.Errorf("expected Location %s, got %s", wantLocation, resLocation))
 
 			// Проверяем Content-Type
-			resContentType := res.Header.Get("Content-Type")
+			resContentType := resp.Header.Get("Content-Type")
 			wantContentType := tt.want.contentType
 			assert.Equal(t, resContentType, wantContentType, fmt.Errorf("expected Content-Type %s, got %s", wantContentType, resContentType))
 
 			// получаем и проверяем тело запроса
-			//defer res.Body.Close()
-			//resBody, err := io.ReadAll(res.Body)
-			//if err != nil {
-			//	t.Fatal(err)
-			//}
-			//if string(resBody) != tt.want.response {
-			//	t.Errorf("Expected body %s, got %s", tt.want.response, w.Body.String())
-			//}
-
-		})
-	}
-}
-
-func TestMakeHandlerPost(t *testing.T) {
-	var database = app.InitDB()
-	//database.Insert("https://codepen.io", "Hasfe")
-	type want struct {
-		code        int
-		response    bool
-		contentType string
-	}
-
-	tests := []struct {
-		request string
-		name    string
-		want    want
-	}{
-		// TODO: Add test cases.
-		{
-			name:    "positive test #1",
-			request: "https://codepen.io",
-			want: want{
-				code:        http.StatusCreated,
-				response:    true,
-				contentType: "text/plain",
-			},
-		},
-		{
-			name:    "positive test #2",
-			request: "www.google.com",
-			want: want{
-				code:        http.StatusCreated,
-				response:    true,
-				contentType: "text/plain",
-			},
-		},
-		{
-			name:    "positive test #3",
-			request: "www.url-with-querystring.com/?url=has-querystring",
-			want: want{
-				code:        http.StatusCreated,
-				response:    true,
-				contentType: "text/plain",
-			},
-		},
-		{
-			name:    "negative test #1",
-			request: "https://codepen",
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-		{
-			name:    "negative test #2",
-			request: "что-то написано",
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-		{
-			name:    "negative test #3",
-			request: "",
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var body = []byte(tt.request)
-			request := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(body))
-			// создаём новый Recorder
-			w := httptest.NewRecorder()
-			// определяем хендлер
-			h := handlers.MakeHandler(database)
-			// запускаем сервер
-			h.ServeHTTP(w, request)
-			res := w.Result()
-			// проверяем код ответа
-			resStatusCode := res.StatusCode
-			wantStatusCode := tt.want.code
-			assert.Equal(t, resStatusCode, wantStatusCode, fmt.Errorf("expected StatusCode %d, got %d", wantStatusCode, resStatusCode))
-
-			// Проверяем Content-Type
-			resContentType := res.Header.Get("Content-Type")
-			wantContentType := tt.want.contentType
-			assert.Equal(t, resContentType, wantContentType, fmt.Errorf("expected Content-Type %s, got %s", wantContentType, resContentType))
-
-			// получаем и проверяем тело запроса
-			defer res.Body.Close()
-			resBodyTmp, err := io.ReadAll(res.Body)
+			defer resp.Body.Close()
+			resBodyTmp, err := io.ReadAll(resp.Body)
 			if err != nil {
 				t.Fatal(err)
 			}
-			resBody := checker.CheckShortUrl(string(resBodyTmp))
-			wantBody := tt.want.response
+			fmt.Println(string(resBodyTmp))
+			resBody := utils.ValidateShortUrl(string(resBodyTmp))
+			wantBody := tt.want.responseFormat
 			assert.Equal(t, resContentType, wantContentType, fmt.Errorf("expected BodyCheck %v, got %v", wantBody, resBody))
+
 		})
 	}
 }
