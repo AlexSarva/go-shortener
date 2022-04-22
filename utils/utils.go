@@ -6,13 +6,11 @@ import (
 	"time"
 )
 
-//CheckUrl
 func ValidateUrl(rawText string) bool {
 	var re = regexp.MustCompile(`(\b(https?):\/\/)?[-A-Za-z0-9+&@#\/%?=~_|!:,.;]+\.[-A-Za-z0-9+&@#\/%=~_|]+`)
 	return re.Match([]byte(rawText))
 }
 
-//CheckShortUrl
 func ValidateShortUrl(rawText string) bool {
 	var re = regexp.MustCompile(`http:\/\/localhost:8080\/[a-zA-Z]{5}`)
 	return re.Match([]byte(rawText))
