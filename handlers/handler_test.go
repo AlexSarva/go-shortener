@@ -197,8 +197,8 @@ func TestMytHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			reqBoby := []byte(tt.requestBody)
 			//var body = []byte(tt.requestBody)
-			reqUrl := "/" + tt.request
-			request := httptest.NewRequest(tt.requestMethod, reqUrl, bytes.NewBuffer(reqBoby))
+			reqURL := "/" + tt.request
+			request := httptest.NewRequest(tt.requestMethod, reqURL, bytes.NewBuffer(reqBoby))
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
 			Handler.ServeHTTP(w, request)
@@ -226,7 +226,7 @@ func TestMytHandler(t *testing.T) {
 				t.Fatal(err)
 			}
 			fmt.Println(string(resBodyTmp))
-			resBody := utils.ValidateShortUrl(string(resBodyTmp))
+			resBody := utils.ValidateShortURL(string(resBodyTmp))
 			wantBody := tt.want.responseFormat
 			assert.Equal(t, resContentType, wantContentType, fmt.Errorf("expected BodyCheck %v, got %v", wantBody, resBody))
 

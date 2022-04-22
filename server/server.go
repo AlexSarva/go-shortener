@@ -16,7 +16,7 @@ type MyServer struct {
 	httpServer *http.Server
 }
 
-func NewMyServer(port int, database storage.UrlLocalStorage) *MyServer {
+func NewMyServer(port int, database storage.URLLocalStorage) *MyServer {
 	handler := handlers.MyHandler(database)
 	server := http.Server{
 		Addr:    "localhost:" + strconv.Itoa(port),

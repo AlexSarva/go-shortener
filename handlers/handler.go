@@ -13,7 +13,7 @@ import (
 
 const ShortLen int = 5
 
-func MyGetHandle(database *storage.UrlLocalStorage) http.HandlerFunc {
+func MyGetHandle(database *storage.URLLocalStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		res, er := database.Get(id)
@@ -24,12 +24,12 @@ func MyGetHandle(database *storage.UrlLocalStorage) http.HandlerFunc {
 				log.Println("Something wrong", err)
 			}
 		} else {
-			longUrl := res.RawUrl
+			longURL := res.RawURL
 			w.Header().Set("content-type", "text/plain; charset=utf-8")
-			w.Header().Add("Location", longUrl)
+			w.Header().Add("Location", longURL)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 
-			_, err := w.Write([]byte(longUrl))
+			_, err := w.Write([]byte(longURL))
 			if err != nil {
 				log.Println("Something wrong", err)
 			}
@@ -37,7 +37,7 @@ func MyGetHandle(database *storage.UrlLocalStorage) http.HandlerFunc {
 	}
 }
 
-func MyPostHandle(database *storage.UrlLocalStorage) http.HandlerFunc {
+func MyPostHandle(database *storage.URLLocalStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		b, err := io.ReadAll(r.Body)
 		fmt.Println(b)
@@ -45,32 +45,32 @@ func MyPostHandle(database *storage.UrlLocalStorage) http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			log.Println(err.Error())
 		}
-		rawUrl := string(b)
-		if utils.ValidateUrl(rawUrl) {
-			shortUrl := utils.ShortUrlGenerator(ShortLen)
-			dbErr := database.Insert(rawUrl, shortUrl)
+		rawURL := string(b)
+		if utils.ValidateURL(rawURL) {
+			shortURL := utils.ShortURLGenerator(ShortLen)
+			dbErr := database.Insert(rawURL, shortURL)
 			if dbErr != nil {
 				log.Println(dbErr)
 			}
 			w.Header().Set("content-type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusCreated)
 			log.Println("URL write to DB")
-			_, err := w.Write([]byte("http://localhost:8080/" + shortUrl))
+			_, err := w.Write([]byte("http://localhost:8080/" + shortURL))
 			if err != nil {
 				log.Println("Something wrong", err)
 			}
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
-			_, err := w.Write([]byte("It's not Url!"))
+			_, err := w.Write([]byte("It's not URL!"))
 			if err != nil {
 				log.Println("Something wrong", err)
 			}
-			log.Println("It's not Url!")
+			log.Println("It's not URL!")
 		}
 	}
 }
 
-func MyHandler(database storage.UrlLocalStorage) *chi.Mux {
+func MyHandler(database storage.URLLocalStorage) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)

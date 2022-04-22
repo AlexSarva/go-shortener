@@ -2,9 +2,9 @@ package models
 
 import "time"
 
-type Url struct {
+type URL struct {
 	Id       string
-	ShortUrl string
-	RawUrl   string
+	ShortURL string
+	RawURL   string
 	Created  time.Time
 }

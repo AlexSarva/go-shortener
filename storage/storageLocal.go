@@ -8,45 +8,45 @@ import (
 	"time"
 )
 
-var ErrUrlNotFound = errors.New("url not found")
+var ErrURLNotFound = errors.New("URL not found")
 
-type UrlLocalStorage struct {
-	urlList map[string]*models.Url
+type URLLocalStorage struct {
+	URLList map[string]*models.URL
 	mutex   *sync.Mutex
 }
 
-func NewUrlLocalStorage() *UrlLocalStorage {
-	return &UrlLocalStorage{
-		urlList: make(map[string]*models.Url),
+func NewURLLocalStorage() *URLLocalStorage {
+	return &URLLocalStorage{
+		URLList: make(map[string]*models.URL),
 		mutex:   new(sync.Mutex),
 	}
 }
 
-func (s *UrlLocalStorage) Insert(rawUrl, shortUrl string) error {
+func (s *URLLocalStorage) Insert(rawURL, shortURL string) error {
 	id := uuid.New()
-	urlData := &models.Url{
+	URLData := &models.URL{
 		Id:       id.String(),
-		RawUrl:   rawUrl,
-		ShortUrl: shortUrl,
+		RawURL:   rawURL,
+		ShortURL: shortURL,
 		Created:  time.Now(),
 	}
 	s.mutex.Lock()
-	s.urlList[shortUrl] = urlData
+	s.URLList[shortURL] = URLData
 	s.mutex.Unlock()
 	return nil
 }
 
-func (s *UrlLocalStorage) Get(shortUrl string) (*models.Url, error) {
+func (s *URLLocalStorage) Get(shortURL string) (*models.URL, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	urlInfo, ok := s.urlList[shortUrl]
-	if ok == false {
-		return &models.Url{}, ErrUrlNotFound
+	URLInfo, ok := s.URLList[shortURL]
+	if !ok {
+		return &models.URL{}, ErrURLNotFound
 	}
-	return urlInfo, nil
+	return URLInfo, nil
 }
 
-func InitDB() *UrlLocalStorage {
-	db := *NewUrlLocalStorage()
+func InitDB() *URLLocalStorage {
+	db := *NewURLLocalStorage()
 	return &db
 }
