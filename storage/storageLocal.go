@@ -25,7 +25,7 @@ func NewURLLocalStorage() *URLLocalStorage {
 func (s *URLLocalStorage) Insert(rawURL, shortURL string) error {
 	id := uuid.New()
 	URLData := &models.URL{
-		Id:       id.String(),
+		ID:       id.String(),
 		RawURL:   rawURL,
 		ShortURL: shortURL,
 		Created:  time.Now(),
