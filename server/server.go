@@ -2,7 +2,7 @@ package server
 
 import (
 	"AlexSarva/go-shortener/handlers"
-	"AlexSarva/go-shortener/storage"
+	"AlexSarva/go-shortener/internal/app"
 	"context"
 	"log"
 	"net/http"
@@ -16,7 +16,7 @@ type MyServer struct {
 	httpServer *http.Server
 }
 
-func NewMyServer(port int, database storage.URLLocalStorage) *MyServer {
+func NewMyServer(port int, database *app.Database) *MyServer {
 	handler := handlers.MyHandler(database)
 	server := http.Server{
 		Addr:    "localhost:" + strconv.Itoa(port),

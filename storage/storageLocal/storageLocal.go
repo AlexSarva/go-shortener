@@ -1,4 +1,4 @@
-package storage
+package storageLocal
 
 import (
 	"AlexSarva/go-shortener/models"
@@ -22,7 +22,7 @@ func NewURLLocalStorage() *URLLocalStorage {
 	}
 }
 
-func (s *URLLocalStorage) Insert(rawURL, shortURL string) error {
+func (s *URLLocalStorage) InsertURL(rawURL, shortURL string) error {
 	id := uuid.New()
 	URLData := &models.URL{
 		ID:       id.String(),
@@ -36,7 +36,7 @@ func (s *URLLocalStorage) Insert(rawURL, shortURL string) error {
 	return nil
 }
 
-func (s *URLLocalStorage) Get(shortURL string) (*models.URL, error) {
+func (s *URLLocalStorage) GetURL(shortURL string) (*models.URL, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	URLInfo, ok := s.URLList[shortURL]

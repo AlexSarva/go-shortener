@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"AlexSarva/go-shortener/storage"
+	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/utils"
 	"fmt"
 	"github.com/go-chi/chi/v5"
@@ -13,31 +13,32 @@ import (
 
 const ShortLen int = 5
 
-func MyGetHandle(database *storage.URLLocalStorage) http.HandlerFunc {
+func GetRedirectURL(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
-		res, er := database.Get(id)
+		res, er := database.Repo.GetURL(id)
 		if er != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_, err := w.Write([]byte("No such shortlink!"))
 			if err != nil {
 				log.Println("Something wrong", err)
 			}
-		} else {
-			longURL := res.RawURL
-			w.Header().Set("content-type", "text/plain; charset=utf-8")
-			w.Header().Add("Location", longURL)
-			w.WriteHeader(http.StatusTemporaryRedirect)
-
-			_, err := w.Write([]byte(longURL))
-			if err != nil {
-				log.Println("Something wrong", err)
-			}
+			return
 		}
+		longURL := res.RawURL
+		w.Header().Set("content-type", "text/plain; charset=utf-8")
+		w.Header().Add("Location", longURL)
+		w.WriteHeader(http.StatusTemporaryRedirect)
+
+		_, err := w.Write([]byte(longURL))
+		if err != nil {
+			log.Println("Something wrong", err)
+		}
+
 	}
 }
 
-func MyPostHandle(database *storage.URLLocalStorage) http.HandlerFunc {
+func MakeShortURLHandler(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		b, err := io.ReadAll(r.Body)
 		fmt.Println(b)
@@ -48,7 +49,7 @@ func MyPostHandle(database *storage.URLLocalStorage) http.HandlerFunc {
 		rawURL := string(b)
 		if utils.ValidateURL(rawURL) {
 			shortURL := utils.ShortURLGenerator(ShortLen)
-			dbErr := database.Insert(rawURL, shortURL)
+			dbErr := database.Repo.InsertURL(rawURL, shortURL)
 			if dbErr != nil {
 				log.Println(dbErr)
 			}
@@ -70,15 +71,15 @@ func MyPostHandle(database *storage.URLLocalStorage) http.HandlerFunc {
 	}
 }
 
-func MyHandler(database storage.URLLocalStorage) *chi.Mux {
+func MyHandler(database *app.Database) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/{id}", MyGetHandle(&database))
-	r.Post("/", MyPostHandle(&database))
+	r.Get("/{id}", GetRedirectURL(database))
+	r.Post("/", MakeShortURLHandler(database))
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)

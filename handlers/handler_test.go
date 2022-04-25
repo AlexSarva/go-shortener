@@ -2,7 +2,7 @@ package handlers_test
 
 import (
 	"AlexSarva/go-shortener/handlers"
-	"AlexSarva/go-shortener/storage"
+	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/utils"
 	"bytes"
 	"fmt"
@@ -15,8 +15,8 @@ import (
 )
 
 func TestMytHandler(t *testing.T) {
-	database := *storage.InitDB()
-	insErr := database.Insert("https://codepen.io", "Hasfe")
+	database := app.NewDB()
+	insErr := database.Repo.InsertURL("https://codepen.io", "Hasfe")
 	if insErr != nil {
 		log.Println(insErr)
 	}
