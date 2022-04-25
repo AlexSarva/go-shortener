@@ -4,14 +4,16 @@ import (
 	"AlexSarva/go-shortener/handlers"
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/utils"
+
 	"bytes"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMytHandler(t *testing.T) {

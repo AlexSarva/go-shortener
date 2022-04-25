@@ -3,12 +3,14 @@ package handlers
 import (
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/utils"
+
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 const ShortLen int = 5
