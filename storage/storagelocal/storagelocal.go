@@ -1,4 +1,4 @@
-package storageLocal
+package storagelocal
 
 import (
 	"AlexSarva/go-shortener/models"
@@ -44,9 +44,4 @@ func (s *URLLocalStorage) GetURL(shortURL string) (*models.URL, error) {
 		return &models.URL{}, ErrURLNotFound
 	}
 	return URLInfo, nil
-}
-
-func InitDB() *URLLocalStorage {
-	db := *NewURLLocalStorage()
-	return &db
 }

@@ -2,7 +2,7 @@ package app
 
 import (
 	"AlexSarva/go-shortener/storage"
-	"AlexSarva/go-shortener/storage/storageLocal"
+	"AlexSarva/go-shortener/storage/storagelocal"
 )
 
 type Database struct {
@@ -10,7 +10,7 @@ type Database struct {
 }
 
 func NewDB() *Database {
-	DBStorage := storageLocal.NewURLLocalStorage()
+	DBStorage := storagelocal.NewURLLocalStorage()
 	return &Database{
 		Repo: DBStorage,
 	}
