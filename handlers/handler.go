@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"AlexSarva/go-shortener/internal/app"
+	"AlexSarva/go-shortener/models"
 	"AlexSarva/go-shortener/utils"
+	"encoding/json"
 
 	"fmt"
 	"io"
@@ -73,6 +75,54 @@ func MakeShortURLHandler(database *app.Database) http.HandlerFunc {
 	}
 }
 
+func MakeShortURLByJSON(database *app.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		contentType := r.Header.Get("Content-Type")
+		switch contentType {
+		case "application/json":
+			var newURL models.NewURL
+
+			if err := json.NewDecoder(r.Body).Decode(&newURL); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				log.Println(err)
+			}
+
+			if utils.ValidateURL(newURL.URL) {
+				shortURL := utils.ShortURLGenerator(ShortLen)
+				dbErr := database.Repo.InsertURL(newURL.URL, shortURL)
+				if dbErr != nil {
+					log.Println(dbErr)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusCreated)
+				log.Println("URL write to DB")
+
+				resultURL := models.ResultUrl{
+					Result: "http://localhost:8080/" + shortURL,
+				}
+				bodyURL, bodyErr := json.Marshal(resultURL)
+				if bodyErr != nil {
+					panic(bodyErr)
+				}
+				_, err := w.Write(bodyURL)
+				if err != nil {
+					log.Println("Something wrong", err)
+				}
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+				_, err := w.Write([]byte("It's not URL!"))
+				if err != nil {
+					log.Println("Something wrong", err)
+				}
+			}
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			log.Println(contentType)
+		}
+	}
+}
+
 func MyHandler(database *app.Database) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -82,6 +132,7 @@ func MyHandler(database *app.Database) *chi.Mux {
 
 	r.Get("/{id}", GetRedirectURL(database))
 	r.Post("/", MakeShortURLHandler(database))
+	r.Post("/api/shorten", MakeShortURLByJSON(database))
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
