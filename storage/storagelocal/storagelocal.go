@@ -24,12 +24,12 @@ func NewURLLocalStorage() *URLLocalStorage {
 	}
 }
 
-func (s *URLLocalStorage) InsertURL(rawURL, shortURL string) error {
+func (s *URLLocalStorage) InsertURL(rawURL, shortURL, baseURL string) error {
 	id := uuid.New()
 	URLData := &models.URL{
 		ID:       id.String(),
 		RawURL:   rawURL,
-		ShortURL: shortURL,
+		ShortURL: "http://" + baseURL + "/" + shortURL,
 		Created:  time.Now(),
 	}
 	s.mutex.Lock()
