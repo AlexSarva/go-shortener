@@ -15,7 +15,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	DB := *app.NewDB()
+	DB := *app.NewDB(cfg.FileStorage)
 	MainApp := server.NewMyServer(&cfg, &DB)
 	if err := MainApp.Run(); err != nil {
 		log.Fatalf("%s", err.Error())

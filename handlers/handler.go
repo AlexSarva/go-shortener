@@ -13,7 +13,7 @@ import (
 	"net/http"
 )
 
-const ShortLen int = 5
+const ShortLen int = 10
 
 func GetRedirectURL(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -50,8 +50,8 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 		}
 		rawURL := string(b)
 		if utils.ValidateURL(rawURL) {
-			shortURL := utils.ShortURLGenerator(ShortLen)
-			dbErr := database.Repo.InsertURL(rawURL, shortURL, cfg.BaseURL)
+			id := utils.ShortURLGenerator(ShortLen)
+			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL)
 			if dbErr != nil {
 				log.Println(dbErr)
 			}
@@ -59,7 +59,7 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 			w.WriteHeader(http.StatusCreated)
 			log.Println("URL write to DB")
 
-			newShortURL, _ := database.Repo.GetURL(shortURL)
+			newShortURL, _ := database.Repo.GetURL(id)
 			_, err := w.Write([]byte(newShortURL.ShortURL))
 			if err != nil {
 				log.Println("Something wrong", err)
@@ -89,8 +89,8 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 			}
 
 			if utils.ValidateURL(newURL.URL) {
-				shortURL := utils.ShortURLGenerator(ShortLen)
-				dbErr := database.Repo.InsertURL(newURL.URL, shortURL, cfg.BaseURL)
+				id := utils.ShortURLGenerator(ShortLen)
+				dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL)
 				if dbErr != nil {
 					log.Println(dbErr)
 				}
@@ -98,7 +98,7 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 				w.WriteHeader(http.StatusCreated)
 				log.Println("URL write to DB")
 
-				newShortURL, _ := database.Repo.GetURL(shortURL)
+				newShortURL, _ := database.Repo.GetURL(id)
 
 				resultURL := models.ResultUrl{
 					Result: newShortURL.ShortURL,
