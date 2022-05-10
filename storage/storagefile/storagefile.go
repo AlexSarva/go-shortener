@@ -27,7 +27,7 @@ func (f *fileStorage) InsertURL(id, rawURL, baseURL string) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	//defer file.Close()
 	writer := *bufio.NewWriter(file)
 
 	URLData := models.URL{
@@ -51,10 +51,7 @@ func (f *fileStorage) InsertURL(id, rawURL, baseURL string) error {
 		return err
 	}
 	// записываем буфер в файл
-	closeErr := file.Close()
-	if closeErr != nil {
-		log.Fatal(closeErr)
-	}
+
 	return writer.Flush()
 }
 
@@ -65,6 +62,8 @@ func (f *fileStorage) GetURL(id string) (*models.URL, error) {
 	}
 
 	scanner := *bufio.NewScanner(file)
+	//defer file.Close()
+
 	for scanner.Scan() {
 		var URLInfo models.URL
 		// читаем данные из scanner
@@ -77,9 +76,6 @@ func (f *fileStorage) GetURL(id string) (*models.URL, error) {
 			return &URLInfo, nil
 		}
 	}
-	closeErr := file.Close()
-	if closeErr != nil {
-		log.Fatal(closeErr)
-	}
+
 	return &models.URL{}, ErrURLNotFound
 }
