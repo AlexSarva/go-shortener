@@ -4,18 +4,60 @@ import (
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/models"
 	"AlexSarva/go-shortener/utils"
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
 )
 
 const ShortLen int = 10
+
+// Обработка сжатых запросов
+func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
+	// GZIP decode
+	if len(r.Header["Content-Encoding"]) > 0 && r.Header["Content-Encoding"][0] == "gzip" {
+		// Read body
+		bodyBytes, readErr := ioutil.ReadAll(r.Body)
+		if readErr != nil {
+			return nil, readErr
+		}
+		defer r.Body.Close()
+
+		log.Println("Получен Сжатый Body")
+		newR, gzErr := gzip.NewReader(ioutil.NopCloser(bytes.NewBuffer(bodyBytes)))
+		if gzErr != nil {
+			return nil, gzErr
+		}
+		defer newR.Close()
+
+		//bb, err2 := ioutil.ReadAll(r)
+		//if err2 != nil {
+		//	return nil, err2
+		//}
+		return newR, nil
+	} else {
+		log.Println("Получен Обычный Body")
+		// Not compressed
+		return r.Body, nil
+	}
+}
+
+// Дополнительный обработчик ошибок
+func errorResponse(w http.ResponseWriter, message, errContentType string, httpStatusCode int) {
+	w.Header().Set("Content-Type", errContentType)
+	w.WriteHeader(httpStatusCode)
+	resp := make(map[string]string)
+	resp["message"] = message
+	jsonResp, _ := json.Marshal(resp)
+	w.Write(jsonResp)
+}
 
 func GetRedirectURL(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +72,7 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 			return
 		}
 		longURL := res.RawURL
-		w.Header().Set("content-type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Add("Location", longURL)
 		w.WriteHeader(http.StatusTemporaryRedirect)
 
@@ -44,20 +86,32 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 
 func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		b, err := io.ReadAll(r.Body)
-		fmt.Println(b)
+		if !strings.Contains("text/plain, text/xml, text/plain; charset=utf-8", r.Header.Get("Content-Type")) {
+			errorResponse(w, "Content Type is not text", "text/plain", http.StatusUnsupportedMediaType)
+			return
+		}
+
+		b, err := readBodyBytes(r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			log.Println(err.Error())
 		}
-		rawURL := string(b)
+
+		body, bodyErr := io.ReadAll(b)
+		if bodyErr != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			log.Println(bodyErr.Error())
+		}
+
+		rawURL := string(body)
+		log.Println(rawURL)
 		if utils.ValidateURL(rawURL) {
 			id := utils.ShortURLGenerator(ShortLen)
 			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL)
 			if dbErr != nil {
 				log.Println(dbErr)
 			}
-			w.Header().Set("content-type", "text/plain; charset=utf-8")
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusCreated)
 			log.Println("URL write to DB")
 
@@ -80,63 +134,64 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		contentType := r.Header.Get("Content-Type")
-		switch contentType {
-		case "application/json":
-			var newURL models.NewURL
+		headerContentTtype := r.Header.Get("Content-Type")
 
-			if err := json.NewDecoder(r.Body).Decode(&newURL); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				log.Println(err)
-			}
+		if headerContentTtype != "application/json" {
+			errorResponse(w, "Content Type is not application/json", "application/json", http.StatusUnsupportedMediaType)
+			return
+		}
 
-			if utils.ValidateURL(newURL.URL) {
-				id := utils.ShortURLGenerator(ShortLen)
-				dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL)
-				if dbErr != nil {
-					log.Println(dbErr)
-				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusCreated)
-				log.Println("URL write to DB")
+		var newURL models.NewURL
+		var unmarshalErr *json.UnmarshalTypeError
 
-				newShortURL, _ := database.Repo.GetURL(id)
-
-				resultURL := models.ResultUrl{
-					Result: newShortURL.ShortURL,
-				}
-				bodyURL, bodyErr := json.Marshal(resultURL)
-				if bodyErr != nil {
-					panic(bodyErr)
-				}
-				_, err := w.Write(bodyURL)
-				if err != nil {
-					log.Println("Something wrong", err)
-				}
-			} else if (models.NewURL{} == newURL) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-
-				badRequest := models.BadRequest{
-					Error:  "not valid JSON",
-					Result: "",
-				}
-				badRequestJSON, _ := json.Marshal(badRequest)
-
-				_, err := w.Write(badRequestJSON)
-				if err != nil {
-					log.Println("Something wrong", err)
-				}
-			} else {
-				w.WriteHeader(http.StatusBadRequest)
-				_, err := w.Write([]byte("It's not URL!"))
-				if err != nil {
-					log.Println("Something wrong", err)
-				}
-			}
-		default:
+		b, err := readBodyBytes(r)
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			log.Println(contentType)
+			log.Println(err.Error())
+		}
+
+		decoder := json.NewDecoder(b)
+		decoder.DisallowUnknownFields()
+		err = decoder.Decode(&newURL)
+
+		if err != nil {
+			if errors.As(err, &unmarshalErr) {
+				errorResponse(w, "Bad Request. Wrong Type provided for field "+unmarshalErr.Field, "application/json", http.StatusBadRequest)
+			} else {
+				errorResponse(w, "Bad Request "+err.Error(), "application/json", http.StatusBadRequest)
+			}
+			return
+		}
+
+		if utils.ValidateURL(newURL.URL) {
+			id := utils.ShortURLGenerator(ShortLen)
+			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL)
+			if dbErr != nil {
+				log.Println(dbErr)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			log.Println("URL write to DB")
+
+			newShortURL, _ := database.Repo.GetURL(id)
+
+			resultURL := models.ResultUrl{
+				Result: newShortURL.ShortURL,
+			}
+			bodyURL, bodyErr := json.Marshal(resultURL)
+			if bodyErr != nil {
+				panic(bodyErr)
+			}
+			_, err := w.Write(bodyURL)
+			if err != nil {
+				log.Println("Something wrong", err)
+			}
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := w.Write([]byte("It's not URL!"))
+			if err != nil {
+				log.Println("Something wrong", err)
+			}
 		}
 	}
 }
@@ -153,7 +208,7 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 
 var gzipContentTypes = "application/javascript, application/json, text/css, text/html, text/plain, text/xml, text/plain; charset=utf-8"
 
-func GzipHandle(next http.Handler) http.Handler {
+func GzipHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		// проверяем, что клиент поддерживает gzip-сжатие
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
@@ -189,7 +244,10 @@ func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(GzipHandle)
+	r.Use(GzipHandler)
+	r.Use(middleware.AllowContentEncoding("gzip"))
+	r.Use(middleware.AllowContentType("application/json", "text/plain", "text/plain; charset=utf-8"))
+	r.Use(middleware.Compress(5, gzipContentTypes))
 
 	r.Get("/{id}", GetRedirectURL(database))
 	r.Post("/", MakeShortURLHandler(cfg, database))
