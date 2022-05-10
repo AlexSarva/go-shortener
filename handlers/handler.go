@@ -139,7 +139,7 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 
 		headerContentTtype := r.Header.Get("Content-Type")
 
-		if headerContentTtype != "application/json" {
+		if !strings.Contains("application/json, application/x-gzip", headerContentTtype) {
 			errorResponse(w, "Content Type is not application/json", "application/json", http.StatusUnsupportedMediaType)
 			return
 		}
@@ -209,7 +209,7 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-var gzipContentTypes = "application/javascript, application/json, text/css, text/html, text/plain, text/xml"
+var gzipContentTypes = "application/x-gzip, application/javascript, application/json, text/css, text/html, text/plain, text/xml"
 
 func GzipHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
@@ -249,7 +249,7 @@ func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
 	r.Use(middleware.Recoverer)
 	r.Use(GzipHandler)
 	r.Use(middleware.AllowContentEncoding("gzip"))
-	r.Use(middleware.AllowContentType("application/json", "text/plain"))
+	r.Use(middleware.AllowContentType("application/json", "text/plain", "application/x-gzip"))
 	r.Use(middleware.Compress(5, gzipContentTypes))
 
 	r.Get("/{id}", GetRedirectURL(database))
