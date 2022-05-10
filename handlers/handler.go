@@ -89,8 +89,8 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 
 func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains("text/plain, text/xml, text/plain", r.Header.Get("Content-Type")) {
-			errorResponse(w, "Content Type is not text", "text/plain", http.StatusUnsupportedMediaType)
+		if !strings.Contains("text/plain, text/xml, text/plain, text/plain; charset=utf-8", r.Header.Get("Content-Type")) {
+			errorResponse(w, "Content Type is not a text/plain", "text/plain", http.StatusUnsupportedMediaType)
 			return
 		}
 
