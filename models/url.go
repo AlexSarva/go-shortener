@@ -13,6 +13,6 @@ type NewURL struct {
 	URL string `json:"url"`
 }
 
-type ResultUrl struct {
+type ResultURL struct {
 	Result string `json:"result"`
 }

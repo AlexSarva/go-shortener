@@ -31,8 +31,10 @@ func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
 		defer r.Body.Close()
 
 		log.Println("Получен Сжатый Body")
+
 		newR, gzErr := gzip.NewReader(ioutil.NopCloser(bytes.NewBuffer(bodyBytes)))
 		if gzErr != nil {
+			log.Println(gzErr)
 			return nil, gzErr
 		}
 		defer newR.Close()
@@ -41,6 +43,7 @@ func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
 		//if err2 != nil {
 		//	return nil, err2
 		//}
+		log.Println("Возвращен нормальный Body")
 		return newR, nil
 	} else {
 		log.Println("Получен Обычный Body")
@@ -72,7 +75,7 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 			return
 		}
 		longURL := res.RawURL
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Add("Location", longURL)
 		w.WriteHeader(http.StatusTemporaryRedirect)
 
@@ -86,7 +89,7 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 
 func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains("text/plain, text/xml, text/plain; charset=utf-8", r.Header.Get("Content-Type")) {
+		if !strings.Contains("text/plain, text/xml, text/plain", r.Header.Get("Content-Type")) {
 			errorResponse(w, "Content Type is not text", "text/plain", http.StatusUnsupportedMediaType)
 			return
 		}
@@ -111,7 +114,7 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 			if dbErr != nil {
 				log.Println(dbErr)
 			}
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Header().Set("Content-Type", "text/plain")
 			w.WriteHeader(http.StatusCreated)
 			log.Println("URL write to DB")
 
@@ -175,7 +178,7 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 
 			newShortURL, _ := database.Repo.GetURL(id)
 
-			resultURL := models.ResultUrl{
+			resultURL := models.ResultURL{
 				Result: newShortURL.ShortURL,
 			}
 			bodyURL, bodyErr := json.Marshal(resultURL)
@@ -206,7 +209,7 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-var gzipContentTypes = "application/javascript, application/json, text/css, text/html, text/plain, text/xml, text/plain; charset=utf-8"
+var gzipContentTypes = "application/javascript, application/json, text/css, text/html, text/plain, text/xml"
 
 func GzipHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
@@ -246,7 +249,7 @@ func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
 	r.Use(middleware.Recoverer)
 	r.Use(GzipHandler)
 	r.Use(middleware.AllowContentEncoding("gzip"))
-	r.Use(middleware.AllowContentType("application/json", "text/plain", "text/plain; charset=utf-8"))
+	r.Use(middleware.AllowContentType("application/json", "text/plain"))
 	r.Use(middleware.Compress(5, gzipContentTypes))
 
 	r.Get("/{id}", GetRedirectURL(database))
