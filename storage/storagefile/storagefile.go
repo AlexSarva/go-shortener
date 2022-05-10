@@ -24,10 +24,14 @@ func NewFileStorage(fileName string) (*fileStorage, error) {
 
 func (f *fileStorage) InsertURL(id, rawURL, baseURL string) error {
 	file, err := os.OpenFile(f.file, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0777)
-	defer file.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
+	closeErr := file.Close()
+	if closeErr != nil {
+		log.Fatal(closeErr)
+	}
+
 	writer := *bufio.NewWriter(file)
 
 	URLData := models.URL{
@@ -56,9 +60,12 @@ func (f *fileStorage) InsertURL(id, rawURL, baseURL string) error {
 
 func (f *fileStorage) GetURL(id string) (*models.URL, error) {
 	file, err := os.OpenFile(f.file, os.O_RDONLY|os.O_CREATE, 0777)
-	defer file.Close()
 	if err != nil {
 		log.Fatal(err)
+	}
+	closeErr := file.Close()
+	if closeErr != nil {
+		log.Fatal(closeErr)
 	}
 	scanner := *bufio.NewScanner(file)
 	for scanner.Scan() {
