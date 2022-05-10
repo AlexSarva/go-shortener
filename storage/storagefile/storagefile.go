@@ -37,7 +37,7 @@ func (f *fileStorage) InsertURL(id, rawURL, baseURL string) error {
 	URLData := models.URL{
 		ID:       id,
 		RawURL:   rawURL,
-		ShortURL: "http://" + baseURL + "/" + id,
+		ShortURL: baseURL + "/" + id,
 		Created:  time.Now(),
 	}
 
