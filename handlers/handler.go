@@ -89,8 +89,8 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 
 func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains("text/plain, text/xml, text/plain, text/plain; charset=utf-8", r.Header.Get("Content-Type")) {
-			errorResponse(w, "Content Type is not a text/plain", "text/plain", http.StatusUnsupportedMediaType)
+		if !strings.Contains("text/plain, text/xml, text/plain, text/plain; charset=utf-8, application/x-gzip", r.Header.Get("Content-Type")) {
+			errorResponse(w, "Content Type is not a text/plain or application/x-gzip", "text/plain", http.StatusUnsupportedMediaType)
 			return
 		}
 
@@ -140,7 +140,7 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 		headerContentTtype := r.Header.Get("Content-Type")
 
 		if !strings.Contains("application/json, application/x-gzip", headerContentTtype) {
-			errorResponse(w, "Content Type is not application/json", "application/json", http.StatusUnsupportedMediaType)
+			errorResponse(w, "Content Type is not application/json or application/x-gzip", "application/json", http.StatusUnsupportedMediaType)
 			return
 		}
 
