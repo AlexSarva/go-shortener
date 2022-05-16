@@ -13,23 +13,22 @@ import (
 var ErrURLNotFound = errors.New("URL not found")
 
 type fileStorage struct {
-	file string
+	file   string
+	writer *bufio.Writer
 }
 
 func NewFileStorage(fileName string) (*fileStorage, error) {
+	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0777)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return &fileStorage{
-		file: fileName,
+		file:   fileName,
+		writer: bufio.NewWriter(file),
 	}, nil
 }
 
 func (f *fileStorage) InsertURL(id, rawURL, baseURL string) error {
-	file, err := os.OpenFile(f.file, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0777)
-	if err != nil {
-		log.Fatal(err)
-	}
-	//defer file.Close()
-	writer := *bufio.NewWriter(file)
-
 	URLData := models.URL{
 		ID:       id,
 		RawURL:   rawURL,
@@ -43,16 +42,16 @@ func (f *fileStorage) InsertURL(id, rawURL, baseURL string) error {
 	}
 
 	// записываем событие в буфер
-	if _, err := writer.Write(data); err != nil {
+	if _, err := f.writer.Write(data); err != nil {
 		return err
 	}
 	// добавляем перенос строки
-	if err := writer.WriteByte('\n'); err != nil {
+	if err := f.writer.WriteByte('\n'); err != nil {
 		return err
 	}
 	// записываем буфер в файл
 
-	return writer.Flush()
+	return f.writer.Flush()
 }
 
 func (f *fileStorage) GetURL(id string) (*models.URL, error) {
@@ -62,7 +61,6 @@ func (f *fileStorage) GetURL(id string) (*models.URL, error) {
 	}
 
 	scanner := *bufio.NewScanner(file)
-	//defer file.Close()
 
 	for scanner.Scan() {
 		var URLInfo models.URL

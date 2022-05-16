@@ -17,13 +17,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("%+v\n", cfg)
+	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage)
 	// Перезаписываем из параметров запуска
 	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "host:port to listen on")
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "base host:port for short link")
 	flag.StringVar(&cfg.FileStorage, "f", cfg.FileStorage, "filepath of short links file storage")
 	flag.Parse()
-	log.Printf("%+v\n", cfg)
+	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage)
 	DB := *app.NewDB(cfg.FileStorage)
 	MainApp := server.NewMyServer(&cfg, &DB)
 	if err := MainApp.Run(); err != nil {

@@ -1,6 +1,8 @@
 package handlers_test
 
 import (
+	"AlexSarva/go-shortener/compressor"
+	"AlexSarva/go-shortener/compressor/compress"
 	"AlexSarva/go-shortener/handlers"
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/models"
@@ -18,6 +20,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type Compressor struct {
+	compressor compressor.Compressor
+}
+
+func NewCompressor(data []byte) *Compressor {
+	GzipCompressor := *compress.NewGzipCompress(data)
+	return &Compressor{
+		compressor: GzipCompressor,
+	}
+}
+
 func TestMytHandler(t *testing.T) {
 	var cfg models.Config
 	// Приоритет будет у ФЛАГОВ
@@ -27,6 +40,8 @@ func TestMytHandler(t *testing.T) {
 		log.Fatal(err)
 	}
 	database := app.NewDB(cfg.FileStorage)
+	CurCompressor := NewCompressor([]byte(`{"url":"https://codepen.io"}`))
+	compressData := CurCompressor.compressor.Compress()
 	insErr := database.Repo.InsertURL("Hasfe", "https://codepen.io", cfg.BaseURL)
 	log.Printf("%+v\n", database.Repo)
 	if insErr != nil {
@@ -296,7 +311,7 @@ func TestMytHandler(t *testing.T) {
 		},
 		{
 			name:                   fmt.Sprintf("%s GZIP positive test #2", http.MethodPost),
-			requestCompressBody:    utils.GzipCompress([]byte(`{"url":"https://codepen.io"}`)),
+			requestCompressBody:    compressData,
 			requestPath:            "/api/shorten",
 			requestMethod:          http.MethodPost,
 			requestContentType:     "application/json",
