@@ -3,13 +3,12 @@ package server
 import (
 	"AlexSarva/go-shortener/handlers"
 	"AlexSarva/go-shortener/internal/app"
-
+	"AlexSarva/go-shortener/models"
 	"context"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 )
 
@@ -17,10 +16,10 @@ type MyServer struct {
 	httpServer *http.Server
 }
 
-func NewMyServer(port int, database *app.Database) *MyServer {
-	handler := handlers.MyHandler(database)
+func NewMyServer(cfg *models.Config, database *app.Database) *MyServer {
+	handler := handlers.MyHandler(cfg, database)
 	server := http.Server{
-		Addr:    "localhost:" + strconv.Itoa(port),
+		Addr:    cfg.ServerAddress,
 		Handler: handler,
 	}
 	return &MyServer{

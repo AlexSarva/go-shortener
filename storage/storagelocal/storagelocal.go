@@ -6,8 +6,6 @@ import (
 	"errors"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 var ErrURLNotFound = errors.New("URL not found")
@@ -24,24 +22,23 @@ func NewURLLocalStorage() *URLLocalStorage {
 	}
 }
 
-func (s *URLLocalStorage) InsertURL(rawURL, shortURL string) error {
-	id := uuid.New()
+func (s *URLLocalStorage) InsertURL(id, rawURL, baseURL string) error {
 	URLData := &models.URL{
-		ID:       id.String(),
+		ID:       id,
 		RawURL:   rawURL,
-		ShortURL: shortURL,
+		ShortURL: baseURL + "/" + id,
 		Created:  time.Now(),
 	}
 	s.mutex.Lock()
-	s.URLList[shortURL] = URLData
+	s.URLList[id] = URLData
 	s.mutex.Unlock()
 	return nil
 }
 
-func (s *URLLocalStorage) GetURL(shortURL string) (*models.URL, error) {
+func (s *URLLocalStorage) GetURL(id string) (*models.URL, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	URLInfo, ok := s.URLList[shortURL]
+	URLInfo, ok := s.URLList[id]
 	if !ok {
 		return &models.URL{}, ErrURLNotFound
 	}
