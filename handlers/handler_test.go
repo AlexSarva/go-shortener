@@ -42,7 +42,7 @@ func TestMytHandler(t *testing.T) {
 	database := app.NewDB(cfg.FileStorage)
 	CurCompressor := NewCompressor([]byte(`{"url":"https://codepen.io"}`))
 	compressData := CurCompressor.compressor.Compress()
-	insErr := database.Repo.InsertURL("Hasfe", "https://codepen.io", cfg.BaseURL)
+	insErr := database.Repo.InsertURL("Hasfe", "https://codepen.io", cfg.BaseURL, "ff2d2c4c-7bf7-49a7-a468-9c6d32aff40a")
 	log.Printf("%+v\n", database.Repo)
 	if insErr != nil {
 		log.Println(insErr)

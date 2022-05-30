@@ -6,7 +6,7 @@ type URL struct {
 	ID       string    `json:"id"`
 	ShortURL string    `json:"short_url"`
 	RawURL   string    `json:"raw_url"`
-	UserID   int       `json:"user_id"`
+	UserID   string    `json:"user_id"`
 	Created  time.Time `json:"created,omitempty"`
 }
 

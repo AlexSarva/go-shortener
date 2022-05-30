@@ -29,7 +29,7 @@ func NewFileStorage(fileName string) (*fileStorage, error) {
 	}, nil
 }
 
-func (f *fileStorage) InsertURL(id, rawURL, baseURL string, userID int) error {
+func (f *fileStorage) InsertURL(id, rawURL, baseURL, userID string) error {
 	URLData := models.URL{
 		ID:       id,
 		RawURL:   rawURL,
@@ -80,7 +80,7 @@ func (f *fileStorage) GetURL(id string) (*models.URL, error) {
 	return &models.URL{}, ErrURLNotFound
 }
 
-func (f *fileStorage) GetUserURLs(userID int) ([]models.UserURL, error) {
+func (f *fileStorage) GetUserURLs(userID string) ([]models.UserURL, error) {
 	file, err := os.OpenFile(f.file, os.O_RDONLY|os.O_CREATE, 0777)
 	if err != nil {
 		log.Fatal(err)

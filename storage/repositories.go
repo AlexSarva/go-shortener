@@ -3,7 +3,7 @@ package storage
 import "AlexSarva/go-shortener/models"
 
 type Repo interface {
-	InsertURL(id, rawURL, baseURL string, userID int) error
+	InsertURL(id, rawURL, baseURL, userID string) error
 	GetURL(id string) (*models.URL, error)
-	GetUserURLs(userID int) ([]models.UserURL, error)
+	GetUserURLs(userID string) ([]models.UserURL, error)
 }

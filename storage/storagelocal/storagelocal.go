@@ -22,7 +22,7 @@ func NewURLLocalStorage() *URLLocalStorage {
 	}
 }
 
-func (s *URLLocalStorage) InsertURL(id, rawURL, baseURL string, userID int) error {
+func (s *URLLocalStorage) InsertURL(id, rawURL, baseURL, userID string) error {
 	URLData := &models.URL{
 		ID:       id,
 		RawURL:   rawURL,
@@ -46,7 +46,7 @@ func (s *URLLocalStorage) GetURL(id string) (*models.URL, error) {
 	return URLInfo, nil
 }
 
-func (s *URLLocalStorage) GetUserURLs(userID int) ([]models.UserURL, error) {
+func (s *URLLocalStorage) GetUserURLs(userID string) ([]models.UserURL, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	var URLList []models.UserURL

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 	"io"
 	"io/ioutil"
 	"log"
@@ -20,6 +21,8 @@ import (
 )
 
 const ShortLen int = 10
+
+var NotValidCookieErr = errors.New("valid cookie does not found")
 
 // Обработка сжатых запросов
 func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
@@ -32,7 +35,7 @@ func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
 		}
 		defer r.Body.Close()
 
-		log.Println("Получен Сжатый Body")
+		log.Println("Получен сжатый запрос")
 
 		newR, gzErr := gzip.NewReader(ioutil.NopCloser(bytes.NewBuffer(bodyBytes)))
 		if gzErr != nil {
@@ -45,10 +48,10 @@ func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
 		//if err2 != nil {
 		//	return nil, err2
 		//}
-		log.Println("Возвращен нормальный Body")
+		//log.Println("Возвращен нормальный Body")
 		return newR, nil
 	} else {
-		log.Println("Получен Обычный Body")
+		log.Println("Получен несжатый запрос")
 		// Not compressed
 		return r.Body, nil
 	}
@@ -62,28 +65,6 @@ func errorResponse(w http.ResponseWriter, message, errContentType string, httpSt
 	resp["message"] = message
 	jsonResp, _ := json.Marshal(resp)
 	w.Write(jsonResp)
-}
-
-func generateCookie(userID int) http.Cookie {
-	session := crypto.Encrypt(userID, []byte("test"))
-	expiration := time.Now().Add(365 * 24 * time.Hour)
-	cookie := http.Cookie{Name: "session", Value: session, Expires: expiration}
-	log.Println(cookie)
-	return cookie
-}
-
-func getCookie(r *http.Request) (int, error) {
-	cookies := r.Cookies()
-	for _, cookie := range cookies {
-		if cookie.Name == "session" {
-			userID, cookieErr := crypto.Decrypt(cookie.Value, []byte("test"))
-			if cookieErr != nil {
-				log.Println(cookieErr)
-			}
-			return userID, nil
-		}
-	}
-	return utils.UserIDGenerator(5), errors.New("no available cookie")
 }
 
 func GetRedirectURL(database *app.Database) http.HandlerFunc {
@@ -116,14 +97,13 @@ func GetUserURLs(database *app.Database) http.HandlerFunc {
 		userID, userIDErr := getCookie(r)
 		if userIDErr != nil {
 			log.Println(userIDErr)
+			w.WriteHeader(http.StatusNoContent)
+			return
+
 		}
-		res, er := database.Repo.GetUserURLs(userID)
+		res, er := database.Repo.GetUserURLs(userID.String())
 		if er != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			_, err := w.Write([]byte("No such shortlink!"))
-			if err != nil {
-				log.Println("Something wrong", err)
-			}
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 
@@ -166,7 +146,7 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 			id := utils.ShortURLGenerator(ShortLen)
 			cookie, _ := r.Cookie("session")
 			userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
-			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL, userID)
+			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL, userID.String())
 			if dbErr != nil {
 				log.Println(dbErr)
 			}
@@ -226,7 +206,7 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 			id := utils.ShortURLGenerator(ShortLen)
 			cookie, _ := r.Cookie("session")
 			userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
-			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL, userID)
+			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL, userID.String())
 			if dbErr != nil {
 				log.Println(dbErr)
 			}
@@ -299,15 +279,37 @@ func GzipHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+func generateCookie(userID uuid.UUID) http.Cookie {
+	session := crypto.Encrypt(userID, []byte("test"))
+	expiration := time.Now().Add(365 * 24 * time.Hour)
+	cookie := http.Cookie{Name: "session", Value: session, Expires: expiration}
+	return cookie
+}
+
+func getCookie(r *http.Request) (uuid.UUID, error) {
+	cookie, cookieErr := r.Cookie("session")
+	if cookieErr != nil {
+		log.Println(cookieErr)
+		return uuid.UUID{}, NotValidCookieErr
+	}
+	userID, cookieDecryptErr := crypto.Decrypt(cookie.Value, []byte("test"))
+	if cookieDecryptErr != nil {
+		return uuid.UUID{}, cookieDecryptErr
+	}
+	return userID, nil
+
+}
+
 func CookieHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		userID, userIDErr := getCookie(r)
+		_, userIDErr := getCookie(r)
 		if userIDErr != nil {
 			log.Println(userIDErr)
-			userCookie := generateCookie(userID)
+			userCookie := generateCookie(uuid.New())
+			log.Println(userCookie)
 			r.AddCookie(&userCookie)
+			http.SetCookie(w, &userCookie)
 		}
-		log.Println(userID)
 		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
