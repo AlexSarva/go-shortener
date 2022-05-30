@@ -11,6 +11,7 @@ import (
 )
 
 var ErrURLNotFound = errors.New("URL not found")
+var ErrUserURLsNotFound = errors.New("no URLs found by such userID")
 
 type fileStorage struct {
 	file   string
@@ -28,12 +29,13 @@ func NewFileStorage(fileName string) (*fileStorage, error) {
 	}, nil
 }
 
-func (f *fileStorage) InsertURL(id, rawURL, baseURL string) error {
+func (f *fileStorage) InsertURL(id, rawURL, baseURL string, userID int) error {
 	URLData := models.URL{
 		ID:       id,
 		RawURL:   rawURL,
 		ShortURL: baseURL + "/" + id,
 		Created:  time.Now(),
+		UserID:   userID,
 	}
 
 	data, err := json.Marshal(&URLData)
@@ -76,4 +78,35 @@ func (f *fileStorage) GetURL(id string) (*models.URL, error) {
 	}
 
 	return &models.URL{}, ErrURLNotFound
+}
+
+func (f *fileStorage) GetUserURLs(userID int) ([]models.UserURL, error) {
+	file, err := os.OpenFile(f.file, os.O_RDONLY|os.O_CREATE, 0777)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	scanner := *bufio.NewScanner(file)
+	var URLList []models.UserURL
+	for scanner.Scan() {
+		var URLInfo models.URL
+		// читаем данные из scanner
+		data := scanner.Bytes()
+		if err := json.Unmarshal(data, &URLInfo); err != nil {
+			panic(err)
+		}
+		if URLInfo.UserID == userID {
+			UserUrlInfo := &models.UserURL{
+				ShortURL: URLInfo.ShortURL,
+				RawURL:   URLInfo.RawURL,
+			}
+			URLList = append(URLList, *UserUrlInfo)
+		}
+	}
+
+	if len(URLList) > 0 {
+		return URLList, nil
+	} else {
+		return URLList, ErrUserURLsNotFound
+	}
 }

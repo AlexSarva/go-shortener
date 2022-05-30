@@ -2,13 +2,13 @@ package storagelocal
 
 import (
 	"AlexSarva/go-shortener/models"
-
 	"errors"
 	"sync"
 	"time"
 )
 
 var ErrURLNotFound = errors.New("URL not found")
+var ErrUserURLsNotFound = errors.New("no URLs found by such userID")
 
 type URLLocalStorage struct {
 	URLList map[string]*models.URL
@@ -22,12 +22,13 @@ func NewURLLocalStorage() *URLLocalStorage {
 	}
 }
 
-func (s *URLLocalStorage) InsertURL(id, rawURL, baseURL string) error {
+func (s *URLLocalStorage) InsertURL(id, rawURL, baseURL string, userID int) error {
 	URLData := &models.URL{
 		ID:       id,
 		RawURL:   rawURL,
 		ShortURL: baseURL + "/" + id,
 		Created:  time.Now(),
+		UserID:   userID,
 	}
 	s.mutex.Lock()
 	s.URLList[id] = URLData
@@ -43,4 +44,24 @@ func (s *URLLocalStorage) GetURL(id string) (*models.URL, error) {
 		return &models.URL{}, ErrURLNotFound
 	}
 	return URLInfo, nil
+}
+
+func (s *URLLocalStorage) GetUserURLs(userID int) ([]models.UserURL, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	var URLList []models.UserURL
+	for _, urlInfo := range s.URLList {
+		if urlInfo.UserID == userID {
+			UserUrlInfo := &models.UserURL{
+				ShortURL: urlInfo.ShortURL,
+				RawURL:   urlInfo.RawURL,
+			}
+			URLList = append(URLList, *UserUrlInfo)
+		}
+	}
+	if len(URLList) > 0 {
+		return URLList, nil
+	} else {
+		return URLList, ErrUserURLsNotFound
+	}
 }

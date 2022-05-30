@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"AlexSarva/go-shortener/crypto"
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/models"
 	"AlexSarva/go-shortener/utils"
@@ -15,6 +16,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const ShortLen int = 10
@@ -62,6 +64,28 @@ func errorResponse(w http.ResponseWriter, message, errContentType string, httpSt
 	w.Write(jsonResp)
 }
 
+func generateCookie(userID int) http.Cookie {
+	session := crypto.Encrypt(userID, []byte("test"))
+	expiration := time.Now().Add(365 * 24 * time.Hour)
+	cookie := http.Cookie{Name: "session", Value: session, Expires: expiration}
+	log.Println(cookie)
+	return cookie
+}
+
+func getCookie(r *http.Request) (int, error) {
+	cookies := r.Cookies()
+	for _, cookie := range cookies {
+		if cookie.Name == "session" {
+			userID, cookieErr := crypto.Decrypt(cookie.Value, []byte("test"))
+			if cookieErr != nil {
+				log.Println(cookieErr)
+			}
+			return userID, nil
+		}
+	}
+	return utils.UserIDGenerator(5), errors.New("no available cookie")
+}
+
 func GetRedirectURL(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
@@ -87,6 +111,37 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 	}
 }
 
+func GetUserURLs(database *app.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, userIDErr := getCookie(r)
+		if userIDErr != nil {
+			log.Println(userIDErr)
+		}
+		res, er := database.Repo.GetUserURLs(userID)
+		if er != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := w.Write([]byte("No such shortlink!"))
+			if err != nil {
+				log.Println("Something wrong", err)
+			}
+			return
+		}
+
+		resultList, resultListErr := json.Marshal(res)
+		if resultListErr != nil {
+			panic(resultListErr)
+		}
+		_, err := w.Write(resultList)
+		if err != nil {
+			log.Println("Something wrong", err)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+	}
+
+}
+
 func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains("text/plain, text/xml, text/plain, text/plain; charset=utf-8, application/x-gzip", r.Header.Get("Content-Type")) {
@@ -105,12 +160,13 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 			w.WriteHeader(http.StatusBadRequest)
 			log.Println(bodyErr.Error())
 		}
-
 		rawURL := string(body)
 		log.Println(rawURL)
 		if utils.ValidateURL(rawURL) {
 			id := utils.ShortURLGenerator(ShortLen)
-			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL)
+			cookie, _ := r.Cookie("session")
+			userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
+			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL, userID)
 			if dbErr != nil {
 				log.Println(dbErr)
 			}
@@ -168,7 +224,9 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 
 		if utils.ValidateURL(newURL.URL) {
 			id := utils.ShortURLGenerator(ShortLen)
-			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL)
+			cookie, _ := r.Cookie("session")
+			userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
+			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL, userID)
 			if dbErr != nil {
 				log.Println(dbErr)
 			}
@@ -241,12 +299,27 @@ func GzipHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+func CookieHandler(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		userID, userIDErr := getCookie(r)
+		if userIDErr != nil {
+			log.Println(userIDErr)
+			userCookie := generateCookie(userID)
+			r.AddCookie(&userCookie)
+		}
+		log.Println(userID)
+		next.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(fn)
+}
+
 func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(CookieHandler)
 	r.Use(GzipHandler)
 	r.Use(middleware.AllowContentEncoding("gzip"))
 	r.Use(middleware.AllowContentType("application/json", "text/plain", "application/x-gzip"))
@@ -255,6 +328,7 @@ func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
 	r.Get("/{id}", GetRedirectURL(database))
 	r.Post("/", MakeShortURLHandler(cfg, database))
 	r.Post("/api/shorten", MakeShortURLByJSON(cfg, database))
+	r.Get("/api/user/urls", GetUserURLs(database))
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
