@@ -67,9 +67,22 @@ func errorResponse(w http.ResponseWriter, message, errContentType string, httpSt
 	w.Write(jsonResp)
 }
 
+func PingDB(database *app.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ping := database.Repo.Ping()
+		if ping {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+	}
+}
+
 func GetRedirectURL(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
+		log.Println(id)
 		res, er := database.Repo.GetURL(id)
 		if er != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -102,6 +115,7 @@ func GetUserURLs(database *app.Database) http.HandlerFunc {
 
 		}
 		res, er := database.Repo.GetUserURLs(userID.String())
+		log.Printf("%+v\n", res)
 		if er != nil {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -327,6 +341,7 @@ func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
 	r.Use(middleware.AllowContentType("application/json", "text/plain", "application/x-gzip"))
 	r.Use(middleware.Compress(5, gzipContentTypes))
 
+	r.Get("/ping", PingDB(database))
 	r.Get("/{id}", GetRedirectURL(database))
 	r.Post("/", MakeShortURLHandler(cfg, database))
 	r.Post("/api/shorten", MakeShortURLByJSON(cfg, database))
