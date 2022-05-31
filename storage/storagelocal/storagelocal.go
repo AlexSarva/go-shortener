@@ -40,6 +40,15 @@ func (s *URLLocalStorage) InsertURL(id, rawURL, baseURL, userID string) error {
 	return nil
 }
 
+func (s *URLLocalStorage) InsertMany(bathURL []models.URL) error {
+	s.mutex.Lock()
+	for _, curURL := range bathURL {
+		s.URLList[curURL.ID] = &curURL
+	}
+	s.mutex.Unlock()
+	return nil
+}
+
 func (s *URLLocalStorage) GetURL(id string) (*models.URL, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

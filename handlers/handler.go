@@ -115,7 +115,7 @@ func GetUserURLs(database *app.Database) http.HandlerFunc {
 
 		}
 		res, er := database.Repo.GetUserURLs(userID.String())
-		log.Printf("%+v\n", res)
+		//log.Printf("%+v\n", res)
 		if er != nil {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -251,6 +251,92 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 	}
 }
 
+func MakeBatchURLByJSON(cfg *models.Config, database *app.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		headerContentTtype := r.Header.Get("Content-Type")
+
+		if !strings.Contains("application/json, application/x-gzip", headerContentTtype) {
+			errorResponse(w, "Content Type is not application/json or application/x-gzip", "application/json", http.StatusUnsupportedMediaType)
+			return
+		}
+
+		var rawBatchURL []models.RawBatchURL
+		var resultBatchURL []models.ResultBatchURL
+		var insertBatchURL []models.URL
+		//var newURL models.NewURL
+		var unmarshalErr *json.UnmarshalTypeError
+
+		b, err := readBodyBytes(r)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			log.Println(err.Error())
+		}
+
+		decoder := json.NewDecoder(b)
+		decoder.DisallowUnknownFields()
+		err = decoder.Decode(&rawBatchURL)
+
+		if err != nil {
+			log.Println(err)
+			if errors.As(err, &unmarshalErr) {
+				errorResponse(w, "Bad Request. Wrong Type provided for field "+unmarshalErr.Field, "application/json", http.StatusBadRequest)
+			} else {
+				errorResponse(w, "Bad Request "+err.Error(), "application/json", http.StatusBadRequest)
+			}
+			return
+		}
+
+		cookie, _ := r.Cookie("session")
+		userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
+
+		for _, urlInfo := range rawBatchURL {
+			if utils.ValidateURL(urlInfo.RawURL) {
+				id := utils.ShortURLGenerator(ShortLen)
+				shortURL := cfg.BaseURL + "/" + id
+				currentURLInsert := models.URL{
+					ID:       id,
+					RawURL:   urlInfo.RawURL,
+					ShortURL: shortURL,
+					Created:  time.Now(),
+					UserID:   userID.String(),
+				}
+				currentURLResult := models.ResultBatchURL{
+					CorrelationID: urlInfo.CorrelationID,
+					ShortURL:      shortURL,
+				}
+				insertBatchURL = append(insertBatchURL, currentURLInsert)
+				resultBatchURL = append(resultBatchURL, currentURLResult)
+
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+				_, err := w.Write([]byte("It's not URL!"))
+				if err != nil {
+					log.Println("Something wrong", err)
+				}
+			}
+		}
+		dbErr := database.Repo.InsertMany(insertBatchURL)
+		if dbErr != nil {
+			log.Println(dbErr)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		bodyURL, bodyErr := json.Marshal(resultBatchURL)
+		if bodyErr != nil {
+			panic(bodyErr)
+		}
+		_, writeErr := w.Write(bodyURL)
+		if writeErr != nil {
+			log.Println("Something wrong", err)
+		}
+
+		log.Printf("%+v\n", insertBatchURL)
+		log.Printf("%+v\n", resultBatchURL)
+	}
+}
+
 type gzipWriter struct {
 	http.ResponseWriter
 	Writer io.Writer
@@ -345,6 +431,7 @@ func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
 	r.Get("/{id}", GetRedirectURL(database))
 	r.Post("/", MakeShortURLHandler(cfg, database))
 	r.Post("/api/shorten", MakeShortURLByJSON(cfg, database))
+	r.Post("/api/shorten/batch", MakeBatchURLByJSON(cfg, database))
 	r.Get("/api/user/urls", GetUserURLs(database))
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {

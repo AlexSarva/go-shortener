@@ -10,6 +10,16 @@ type URL struct {
 	Created  time.Time `json:"created,omitempty" db:"created"`
 }
 
+type RawBatchURL struct {
+	CorrelationID string `json:"correlation_id" db:"id"`
+	RawURL        string `json:"original_url" db:"raw_url"`
+}
+
+type ResultBatchURL struct {
+	CorrelationID string `json:"correlation_id" db:"id"`
+	ShortURL      string `json:"short_url" db:"short_url"`
+}
+
 type NewURL struct {
 	URL string `json:"url"`
 }

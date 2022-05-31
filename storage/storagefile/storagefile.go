@@ -60,6 +60,22 @@ func (f *fileStorage) InsertURL(id, rawURL, baseURL, userID string) error {
 	return f.writer.Flush()
 }
 
+func (f *fileStorage) InsertMany(bathURL []models.URL) error {
+	for _, curURL := range bathURL {
+		data, err := json.Marshal(&curURL)
+		if err != nil {
+			return err
+		}
+		if _, err := f.writer.Write(data); err != nil {
+			return err
+		}
+		if err := f.writer.WriteByte('\n'); err != nil {
+			return err
+		}
+	}
+	return f.writer.Flush()
+}
+
 func (f *fileStorage) GetURL(id string) (*models.URL, error) {
 	file, err := os.OpenFile(f.file, os.O_RDONLY|os.O_CREATE, 0777)
 	if err != nil {

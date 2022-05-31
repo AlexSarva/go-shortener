@@ -6,6 +6,7 @@ import (
 
 type Repo interface {
 	InsertURL(id, rawURL, baseURL, userID string) error
+	InsertMany(bathURL []models.URL) error
 	GetURL(id string) (*models.URL, error)
 	GetUserURLs(userID string) ([]models.UserURL, error)
 	Ping() bool

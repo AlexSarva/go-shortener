@@ -46,13 +46,22 @@ func (d *PostgresDB) InsertURL(id, rawURL, baseURL, userID string) error {
 	}
 
 	tx := d.database.MustBegin()
-	_, resErr := tx.NamedExec("INSERT INTO urls (id, short_url, raw_url, user_id, created) VALUES (:id, :short_url, :raw_url, :user_id, :created)", &URLData)
+	_, resErr := tx.NamedExec("INSERT INTO public.urls (id, short_url, raw_url, user_id, created) VALUES (:id, :short_url, :raw_url, :user_id, :created)", &URLData)
 	if resErr != nil {
 		log.Println(resErr)
 	}
 	commitErr := tx.Commit()
 	if commitErr != nil {
 		log.Println(commitErr)
+	}
+	return nil
+}
+
+func (d *PostgresDB) InsertMany(bathURL []models.URL) error {
+	_, err := d.database.NamedExec(`INSERT INTO public.urls (id, short_url, raw_url, user_id, created)
+        VALUES (:id, :short_url, :raw_url, :user_id, :created)`, bathURL)
+	if err != nil {
+		log.Println(err)
 	}
 	return nil
 }
