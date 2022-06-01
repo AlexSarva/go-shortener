@@ -202,6 +202,9 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 			return
 		}
 
+		cookie, _ := r.Cookie("session")
+		userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
+
 		var newURL models.NewURL
 		var unmarshalErr *json.UnmarshalTypeError
 
@@ -226,8 +229,6 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 
 		if utils.ValidateURL(newURL.URL) {
 			id := utils.ShortURLGenerator(ShortLen)
-			cookie, _ := r.Cookie("session")
-			userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
 			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL, userID.String())
 			if dbErr == storage.DuplicatePKErr {
 				w.Header().Set("Content-Type", "application/json")
@@ -402,7 +403,7 @@ func GzipHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func generateCookie(userID uuid.UUID) http.Cookie {
+func GenerateCookie(userID uuid.UUID) http.Cookie {
 	session := crypto.Encrypt(userID, []byte("test"))
 	expiration := time.Now().Add(365 * 24 * time.Hour)
 	cookie := http.Cookie{Name: "session", Value: session, Expires: expiration, Path: "/"}
@@ -428,7 +429,7 @@ func CookieHandler(next http.Handler) http.Handler {
 		_, userIDErr := getCookie(r)
 		if userIDErr != nil {
 			log.Println(userIDErr)
-			userCookie := generateCookie(uuid.New())
+			userCookie := GenerateCookie(uuid.New())
 			log.Println(userCookie)
 			r.AddCookie(&userCookie)
 			http.SetCookie(w, &userCookie)
