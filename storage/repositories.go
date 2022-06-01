@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 
-var ERRDuplicatePK = errors.New("duplicate PK")
+var ErrDuplicatePK = errors.New("duplicate PK")
 
 type Repo interface {
 	InsertURL(id, rawURL, baseURL, userID string) error

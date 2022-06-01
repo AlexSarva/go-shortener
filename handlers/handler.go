@@ -23,7 +23,7 @@ import (
 
 const ShortLen int = 10
 
-var ERRNotValidCookie = errors.New("valid cookie does not found")
+var ErrNotValidCookie = errors.New("valid cookie does not found")
 
 // Обработка сжатых запросов
 func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
@@ -162,7 +162,7 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 		if utils.ValidateURL(rawURL) {
 			id := utils.ShortURLGenerator(ShortLen)
 			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL, userID.String())
-			if dbErr == storage.ERRDuplicatePK {
+			if dbErr == storage.ErrDuplicatePK {
 				w.Header().Set("Content-Type", "text/plain")
 				w.WriteHeader(http.StatusConflict)
 				existShortURL, _ := database.Repo.GetURLByRaw(rawURL)
@@ -230,7 +230,7 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 		if utils.ValidateURL(newURL.URL) {
 			id := utils.ShortURLGenerator(ShortLen)
 			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL, userID.String())
-			if dbErr == storage.ERRDuplicatePK {
+			if dbErr == storage.ErrDuplicatePK {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusConflict)
 				existShortURL, _ := database.Repo.GetURLByRaw(newURL.URL)
@@ -414,7 +414,7 @@ func getCookie(r *http.Request) (uuid.UUID, error) {
 	cookie, cookieErr := r.Cookie("session")
 	if cookieErr != nil {
 		log.Println(cookieErr)
-		return uuid.UUID{}, ERRNotValidCookie
+		return uuid.UUID{}, ErrNotValidCookie
 	}
 	userID, cookieDecryptErr := crypto.Decrypt(cookie.Value, crypto.SecretKey)
 	if cookieDecryptErr != nil {

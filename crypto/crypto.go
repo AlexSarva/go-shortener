@@ -11,7 +11,7 @@ import (
 
 var SecretKey = []byte("Ag@th@")
 
-var ERRNotValidSing = errors.New("sign is not valid")
+var ErrNotValidSing = errors.New("sign is not valid")
 
 func Encrypt(uuid uuid.UUID, secret []byte) string {
 	h := hmac.New(sha256.New, secret)
@@ -37,7 +37,7 @@ func Decrypt(cookie string, secret []byte) (uuid.UUID, error) {
 	data, err = hex.DecodeString(cookie)
 	if err != nil {
 		log.Println(err)
-		return uuid.New(), ERRNotValidSing
+		return uuid.New(), ErrNotValidSing
 	}
 	id, idErr := uuid.FromBytes(data[:16])
 	if idErr != nil {
@@ -50,6 +50,6 @@ func Decrypt(cookie string, secret []byte) (uuid.UUID, error) {
 	if hmac.Equal(sign, data[16:]) {
 		return id, nil
 	} else {
-		return uuid.New(), ERRNotValidSing
+		return uuid.New(), ErrNotValidSing
 	}
 }
