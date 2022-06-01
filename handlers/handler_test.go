@@ -78,7 +78,8 @@ func TestMytHandler(t *testing.T) {
 			requestMethod: http.MethodGet,
 			requestPath:   "/api/user/urls",
 			want: want{
-				code: http.StatusNoContent,
+				code:        http.StatusNoContent,
+				contentType: "application/json",
 			},
 		},
 		{
