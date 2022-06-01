@@ -2,6 +2,7 @@ package storagepg
 
 import (
 	"AlexSarva/go-shortener/models"
+	"AlexSarva/go-shortener/storage"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"log"
@@ -13,13 +14,12 @@ type PostgresDB struct {
 }
 
 func NewPostgresDBConnection(config string) *PostgresDB {
-	//"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable"
 	db, err := sqlx.Connect("postgres", config)
 	var schema = `
 	CREATE TABLE if not exists public.urls (
-		id text primary key,
+		id text,
 		short_url text,
-		raw_url text,
+		raw_url text primary key,
 		user_id text,
 		created timestamp
 	);`
@@ -46,7 +46,11 @@ func (d *PostgresDB) InsertURL(id, rawURL, baseURL, userID string) error {
 	}
 
 	tx := d.database.MustBegin()
-	_, resErr := tx.NamedExec("INSERT INTO public.urls (id, short_url, raw_url, user_id, created) VALUES (:id, :short_url, :raw_url, :user_id, :created)", &URLData)
+	resInsert, resErr := tx.NamedExec("INSERT INTO public.urls (id, short_url, raw_url, user_id, created) VALUES (:id, :short_url, :raw_url, :user_id, :created) on conflict (raw_url) do nothing ", &URLData)
+	affectedRows, _ := resInsert.RowsAffected()
+	if affectedRows == 0 {
+		return storage.DuplicatePKErr
+	}
 	if resErr != nil {
 		log.Println(resErr)
 	}
@@ -59,7 +63,7 @@ func (d *PostgresDB) InsertURL(id, rawURL, baseURL, userID string) error {
 
 func (d *PostgresDB) InsertMany(bathURL []models.URL) error {
 	_, err := d.database.NamedExec(`INSERT INTO public.urls (id, short_url, raw_url, user_id, created)
-        VALUES (:id, :short_url, :raw_url, :user_id, :created)`, bathURL)
+        VALUES (:id, :short_url, :raw_url, :user_id, :created) on conflict (raw_url) do nothing`, bathURL)
 	if err != nil {
 		log.Println(err)
 	}
@@ -68,7 +72,16 @@ func (d *PostgresDB) InsertMany(bathURL []models.URL) error {
 
 func (d *PostgresDB) GetURL(id string) (*models.URL, error) {
 	var getURL models.URL
-	err := d.database.Get(&getURL, "SELECT * FROM public.urls WHERE id=$1", id)
+	err := d.database.Get(&getURL, "SELECT id, short_url, raw_url, user_id, created FROM public.urls WHERE id=$1", id)
+	if err != nil {
+		log.Println(err)
+	}
+	return &getURL, err
+}
+
+func (d *PostgresDB) GetURLByRaw(rawURL string) (*models.URL, error) {
+	var getURL models.URL
+	err := d.database.Get(&getURL, "SELECT id, short_url, raw_url, user_id, created FROM public.urls WHERE raw_url=$1", rawURL)
 	if err != nil {
 		log.Println(err)
 	}
@@ -79,5 +92,8 @@ func (d *PostgresDB) GetUserURLs(userID string) ([]models.UserURL, error) {
 	var allURLs []models.UserURL
 	log.Println(userID)
 	err := d.database.Select(&allURLs, "SELECT short_url, raw_url FROM public.urls where user_id=$1", userID)
+	if err != nil {
+		log.Println(err)
+	}
 	return allURLs, err
 }

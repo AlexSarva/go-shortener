@@ -100,6 +100,28 @@ func (f *fileStorage) GetURL(id string) (*models.URL, error) {
 	return &models.URL{}, ErrURLNotFound
 }
 
+func (f *fileStorage) GetURLByRaw(rawURL string) (*models.URL, error) {
+	file, err := os.OpenFile(f.file, os.O_RDONLY|os.O_CREATE, 0777)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	scanner := *bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		var URLInfo models.URL
+		// читаем данные из scanner
+		data := scanner.Bytes()
+		if err := json.Unmarshal(data, &URLInfo); err != nil {
+			panic(err)
+		}
+		if URLInfo.RawURL == rawURL {
+			return &URLInfo, nil
+		}
+	}
+	return &models.URL{}, ErrURLNotFound
+}
+
 func (f *fileStorage) GetUserURLs(userID string) ([]models.UserURL, error) {
 	file, err := os.OpenFile(f.file, os.O_RDONLY|os.O_CREATE, 0777)
 	if err != nil {

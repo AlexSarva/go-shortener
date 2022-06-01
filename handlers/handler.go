@@ -4,6 +4,7 @@ import (
 	"AlexSarva/go-shortener/crypto"
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/models"
+	"AlexSarva/go-shortener/storage"
 	"AlexSarva/go-shortener/utils"
 	"bytes"
 	"compress/gzip"
@@ -142,6 +143,8 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 			errorResponse(w, "Content Type is not a text/plain or application/x-gzip", "text/plain", http.StatusUnsupportedMediaType)
 			return
 		}
+		cookie, _ := r.Cookie("session")
+		userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
 
 		b, err := readBodyBytes(r)
 		if err != nil {
@@ -158,11 +161,16 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 		log.Println(rawURL)
 		if utils.ValidateURL(rawURL) {
 			id := utils.ShortURLGenerator(ShortLen)
-			cookie, _ := r.Cookie("session")
-			userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
 			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL, userID.String())
-			if dbErr != nil {
-				log.Println(dbErr)
+			if dbErr == storage.DuplicatePKErr {
+				w.Header().Set("Content-Type", "text/plain")
+				w.WriteHeader(http.StatusConflict)
+				existShortURL, _ := database.Repo.GetURLByRaw(rawURL)
+				_, err := w.Write([]byte(existShortURL.ShortURL))
+				if err != nil {
+					log.Println("Something wrong", err)
+				}
+				return
 			}
 			w.Header().Set("Content-Type", "text/plain")
 			w.WriteHeader(http.StatusCreated)
@@ -221,8 +229,23 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 			cookie, _ := r.Cookie("session")
 			userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
 			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL, userID.String())
-			if dbErr != nil {
-				log.Println(dbErr)
+			if dbErr == storage.DuplicatePKErr {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusConflict)
+				existShortURL, _ := database.Repo.GetURLByRaw(newURL.URL)
+
+				existURL := models.ResultURL{
+					Result: existShortURL.ShortURL,
+				}
+				bodyURL, bodyErr := json.Marshal(existURL)
+				if bodyErr != nil {
+					panic(bodyErr)
+				}
+				_, err := w.Write(bodyURL)
+				if err != nil {
+					log.Println("Something wrong", err)
+				}
+				return
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
@@ -382,7 +405,7 @@ func GzipHandler(next http.Handler) http.Handler {
 func generateCookie(userID uuid.UUID) http.Cookie {
 	session := crypto.Encrypt(userID, []byte("test"))
 	expiration := time.Now().Add(365 * 24 * time.Hour)
-	cookie := http.Cookie{Name: "session", Value: session, Expires: expiration}
+	cookie := http.Cookie{Name: "session", Value: session, Expires: expiration, Path: "/"}
 	return cookie
 }
 

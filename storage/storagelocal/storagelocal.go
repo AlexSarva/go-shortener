@@ -59,6 +59,17 @@ func (s *URLLocalStorage) GetURL(id string) (*models.URL, error) {
 	return URLInfo, nil
 }
 
+func (s *URLLocalStorage) GetURLByRaw(rawURL string) (*models.URL, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	for _, value := range s.URLList {
+		if value.RawURL == rawURL {
+			return value, nil
+		}
+	}
+	return &models.URL{}, ErrURLNotFound
+}
+
 func (s *URLLocalStorage) GetUserURLs(userID string) ([]models.UserURL, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
