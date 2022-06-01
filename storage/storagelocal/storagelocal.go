@@ -76,11 +76,11 @@ func (s *URLLocalStorage) GetUserURLs(userID string) ([]models.UserURL, error) {
 	var URLList []models.UserURL
 	for _, urlInfo := range s.URLList {
 		if urlInfo.UserID == userID {
-			UserUrlInfo := &models.UserURL{
+			UserURLInfo := &models.UserURL{
 				ShortURL: urlInfo.ShortURL,
 				RawURL:   urlInfo.RawURL,
 			}
-			URLList = append(URLList, *UserUrlInfo)
+			URLList = append(URLList, *UserURLInfo)
 		}
 	}
 	if len(URLList) > 0 {

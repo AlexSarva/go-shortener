@@ -138,11 +138,11 @@ func (f *fileStorage) GetUserURLs(userID string) ([]models.UserURL, error) {
 			panic(err)
 		}
 		if URLInfo.UserID == userID {
-			UserUrlInfo := &models.UserURL{
+			UserURLInfo := &models.UserURL{
 				ShortURL: URLInfo.ShortURL,
 				RawURL:   URLInfo.RawURL,
 			}
-			URLList = append(URLList, *UserUrlInfo)
+			URLList = append(URLList, *UserURLInfo)
 		}
 	}
 

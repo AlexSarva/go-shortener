@@ -9,9 +9,9 @@ import (
 	"log"
 )
 
-//var secretkey = []byte("Ag@th@")
+var SecretKey = []byte("Ag@th@")
 
-var NotValidSingERR = errors.New("sign is not valid")
+var ERRNotValidSing = errors.New("sign is not valid")
 
 func Encrypt(uuid uuid.UUID, secret []byte) string {
 	h := hmac.New(sha256.New, secret)
@@ -37,7 +37,7 @@ func Decrypt(cookie string, secret []byte) (uuid.UUID, error) {
 	data, err = hex.DecodeString(cookie)
 	if err != nil {
 		log.Println(err)
-		return uuid.New(), NotValidSingERR
+		return uuid.New(), ERRNotValidSing
 	}
 	id, idErr := uuid.FromBytes(data[:16])
 	if idErr != nil {
@@ -50,6 +50,6 @@ func Decrypt(cookie string, secret []byte) (uuid.UUID, error) {
 	if hmac.Equal(sign, data[16:]) {
 		return id, nil
 	} else {
-		return uuid.New(), NotValidSingERR
+		return uuid.New(), ERRNotValidSing
 	}
 }

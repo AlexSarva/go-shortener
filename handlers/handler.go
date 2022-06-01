@@ -23,7 +23,7 @@ import (
 
 const ShortLen int = 10
 
-var NotValidCookieErr = errors.New("valid cookie does not found")
+var ERRNotValidCookie = errors.New("valid cookie does not found")
 
 // Обработка сжатых запросов
 func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
@@ -144,7 +144,7 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 			return
 		}
 		cookie, _ := r.Cookie("session")
-		userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
+		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
 
 		b, err := readBodyBytes(r)
 		if err != nil {
@@ -162,7 +162,7 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 		if utils.ValidateURL(rawURL) {
 			id := utils.ShortURLGenerator(ShortLen)
 			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL, userID.String())
-			if dbErr == storage.DuplicatePKErr {
+			if dbErr == storage.ERRDuplicatePK {
 				w.Header().Set("Content-Type", "text/plain")
 				w.WriteHeader(http.StatusConflict)
 				existShortURL, _ := database.Repo.GetURLByRaw(rawURL)
@@ -203,7 +203,7 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 		}
 
 		cookie, _ := r.Cookie("session")
-		userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
+		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
 
 		var newURL models.NewURL
 		var unmarshalErr *json.UnmarshalTypeError
@@ -230,7 +230,7 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 		if utils.ValidateURL(newURL.URL) {
 			id := utils.ShortURLGenerator(ShortLen)
 			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL, userID.String())
-			if dbErr == storage.DuplicatePKErr {
+			if dbErr == storage.ERRDuplicatePK {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusConflict)
 				existShortURL, _ := database.Repo.GetURLByRaw(newURL.URL)
@@ -312,7 +312,7 @@ func MakeBatchURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 		}
 
 		cookie, _ := r.Cookie("session")
-		userID, _ := crypto.Decrypt(cookie.Value, []byte("test"))
+		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
 
 		for _, urlInfo := range rawBatchURL {
 			if utils.ValidateURL(urlInfo.RawURL) {
@@ -404,7 +404,7 @@ func GzipHandler(next http.Handler) http.Handler {
 }
 
 func GenerateCookie(userID uuid.UUID) http.Cookie {
-	session := crypto.Encrypt(userID, []byte("test"))
+	session := crypto.Encrypt(userID, crypto.SecretKey)
 	expiration := time.Now().Add(365 * 24 * time.Hour)
 	cookie := http.Cookie{Name: "session", Value: session, Expires: expiration, Path: "/"}
 	return cookie
@@ -414,9 +414,9 @@ func getCookie(r *http.Request) (uuid.UUID, error) {
 	cookie, cookieErr := r.Cookie("session")
 	if cookieErr != nil {
 		log.Println(cookieErr)
-		return uuid.UUID{}, NotValidCookieErr
+		return uuid.UUID{}, ERRNotValidCookie
 	}
-	userID, cookieDecryptErr := crypto.Decrypt(cookie.Value, []byte("test"))
+	userID, cookieDecryptErr := crypto.Decrypt(cookie.Value, crypto.SecretKey)
 	if cookieDecryptErr != nil {
 		return uuid.UUID{}, cookieDecryptErr
 	}

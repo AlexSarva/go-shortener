@@ -49,7 +49,7 @@ func (d *PostgresDB) InsertURL(id, rawURL, baseURL, userID string) error {
 	resInsert, resErr := tx.NamedExec("INSERT INTO public.urls (id, short_url, raw_url, user_id, created) VALUES (:id, :short_url, :raw_url, :user_id, :created) on conflict (raw_url) do nothing ", &URLData)
 	affectedRows, _ := resInsert.RowsAffected()
 	if affectedRows == 0 {
-		return storage.DuplicatePKErr
+		return storage.ERRDuplicatePK
 	}
 	if resErr != nil {
 		log.Println(resErr)
