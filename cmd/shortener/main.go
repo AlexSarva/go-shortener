@@ -24,7 +24,7 @@ func main() {
 	flag.StringVar(&cfg.FileStorage, "f", cfg.FileStorage, "filepath of short links file storage")
 	flag.StringVar(&cfg.Database, "d", cfg.Database, "database config")
 	flag.Parse()
-	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v, Database: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage, cfg.Database)
+	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage)
 	DB := *app.NewStorage(cfg.FileStorage, cfg.Database)
 	ping := DB.Repo.Ping()
 	log.Println(ping)
