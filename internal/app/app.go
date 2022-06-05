@@ -13,7 +13,7 @@ type Database struct {
 	Repo storage.Repo
 }
 
-func NewDB(filePath, database string) *Database {
+func NewStorage(filePath, database string) *Database {
 	if filePath == "" && database == "" {
 		Storage := storagelocal.NewURLLocalStorage()
 		fmt.Println("Using In-Memory Database")

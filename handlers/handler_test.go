@@ -37,7 +37,7 @@ func TestMytHandler(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	database := app.NewDB(cfg.FileStorage, cfg.Database)
+	database := app.NewStorage(cfg.FileStorage, cfg.Database)
 	CurCompressor := NewCompressor([]byte(`{"url":"https://codepen.io"}`))
 	compressData := CurCompressor.compressor.Compress()
 	insErr := database.Repo.InsertURL("Hasfe", "https://codepen.io", cfg.BaseURL, "ff2d2c4c-7bf7-49a7-a468-9c6d32aff40a")
@@ -329,7 +329,6 @@ func TestMytHandler(t *testing.T) {
 			requestContentType: "",
 			want: want{
 				code: http.StatusUnsupportedMediaType,
-				//contentType: "application/json",
 			},
 		},
 		{
@@ -377,7 +376,6 @@ func TestMytHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reqBoby := []byte(tt.requestBody)
-			//var body = []byte(tt.requestBody)
 			reqURL := tt.requestPath + tt.request
 			var request *http.Request
 			if len(tt.requestCompressBody) > 0 {

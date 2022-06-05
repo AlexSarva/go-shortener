@@ -20,9 +20,6 @@ func Encrypt(uuid uuid.UUID, secret []byte) string {
 	var fullCookie []byte
 	fullCookie = append(fullCookie, uuid[:]...)
 	fullCookie = append(fullCookie, dst...)
-	//fmt.Println("ID: ", uuid)
-	//fmt.Println("SIGN: ", dst)
-	//fmt.Println(fullCookie)
 	return hex.EncodeToString(fullCookie)
 }
 

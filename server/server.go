@@ -29,7 +29,7 @@ func NewMyServer(cfg *models.Config, database *app.Database) *MyServer {
 
 func (a *MyServer) Run() error {
 	addr := a.httpServer.Addr
-	log.Printf("Запуск веб-сервера на http://%s", addr)
+	log.Printf("Web-server started at http://%s", addr)
 	go func() {
 		if err := a.httpServer.ListenAndServe(); err != nil {
 			log.Fatalf("Failed to listen and serve: %+v", err)

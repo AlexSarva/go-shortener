@@ -36,7 +36,7 @@ func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
 		}
 		defer r.Body.Close()
 
-		log.Println("Получен сжатый запрос")
+		log.Println("compressed request")
 
 		newR, gzErr := gzip.NewReader(ioutil.NopCloser(bytes.NewBuffer(bodyBytes)))
 		if gzErr != nil {
@@ -45,15 +45,9 @@ func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
 		}
 		defer newR.Close()
 
-		//bb, err2 := ioutil.ReadAll(r)
-		//if err2 != nil {
-		//	return nil, err2
-		//}
-		//log.Println("Возвращен нормальный Body")
 		return newR, nil
 	} else {
-		log.Println("Получен несжатый запрос")
-		// Not compressed
+		log.Println("no compressed request")
 		return r.Body, nil
 	}
 }
@@ -117,7 +111,6 @@ func GetUserURLs(database *app.Database) http.HandlerFunc {
 
 		}
 		res, er := database.Repo.GetUserURLs(userID.String())
-		//log.Printf("%+v\n", res)
 		if er != nil {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -287,7 +280,6 @@ func MakeBatchURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 		var rawBatchURL []models.RawBatchURL
 		var resultBatchURL []models.ResultBatchURL
 		var insertBatchURL []models.URL
-		//var newURL models.NewURL
 		var unmarshalErr *json.UnmarshalTypeError
 
 		b, err := readBodyBytes(r)

@@ -15,7 +15,7 @@ func NewGzipCompress(data []byte) *GzipCompress {
 	}
 }
 
-// GzipCompress сжимает слайс байт.
+// Compress GzipCompress сжимает слайс байт.
 func (g GzipCompress) Compress() []byte {
 	var b bytes.Buffer
 
