@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"log"
 	"math/rand"
 	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -25,4 +27,19 @@ func ShortURLGenerator(n int) string {
 		b[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(b)
+}
+
+var digits = []rune("1234567890")
+
+func UserIDGenerator(n int) int {
+	rand.Seed(time.Now().UnixNano())
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = digits[rand.Intn(len(digits))]
+	}
+	res, err := strconv.Atoi(string(b))
+	if err != nil {
+		log.Println(err)
+	}
+	return res
 }

@@ -7,17 +7,15 @@ import (
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/models"
 	"AlexSarva/go-shortener/utils"
-	"github.com/caarlos0/env/v6"
-
 	"bytes"
 	"fmt"
+	"github.com/caarlos0/env/v6"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 type Compressor struct {
@@ -39,11 +37,10 @@ func TestMytHandler(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	database := app.NewDB(cfg.FileStorage)
+	database := app.NewStorage(cfg.FileStorage, cfg.Database)
 	CurCompressor := NewCompressor([]byte(`{"url":"https://codepen.io"}`))
 	compressData := CurCompressor.compressor.Compress()
-	insErr := database.Repo.InsertURL("Hasfe", "https://codepen.io", cfg.BaseURL)
-	log.Printf("%+v\n", database.Repo)
+	insErr := database.Repo.InsertURL("Hasfe", "https://codepen.io", cfg.BaseURL, "ff2d2c4c-7bf7-49a7-a468-9c6d32aff40a")
 	if insErr != nil {
 		log.Println(insErr)
 	}
@@ -68,6 +65,23 @@ func TestMytHandler(t *testing.T) {
 		requestContentEncoding string
 		want                   want
 	}{
+		{
+			name:          fmt.Sprintf("%s ping test #1", http.MethodGet),
+			requestMethod: http.MethodGet,
+			requestPath:   "/ping",
+			want: want{
+				code: http.StatusInternalServerError,
+			},
+		},
+		{
+			name:          fmt.Sprintf("%s get many test #1", http.MethodGet),
+			requestMethod: http.MethodGet,
+			requestPath:   "/api/user/urls",
+			want: want{
+				code:        http.StatusNoContent,
+				contentType: "application/json",
+			},
+		},
 		{
 			name:          fmt.Sprintf("%s positive test #1", http.MethodGet),
 			request:       "Hasfe",
@@ -100,6 +114,18 @@ func TestMytHandler(t *testing.T) {
 		{
 			name:               fmt.Sprintf("%s positive test #1", http.MethodPost),
 			requestBody:        "https://codepen.io",
+			requestPath:        "/",
+			requestMethod:      http.MethodPost,
+			requestContentType: "text/plain",
+			want: want{
+				code:           http.StatusCreated,
+				responseFormat: true,
+				contentType:    "text/plain",
+			},
+		},
+		{
+			name:               fmt.Sprintf("%s positive test #2", http.MethodPost),
+			requestBody:        "www.google.com",
 			requestPath:        "/",
 			requestMethod:      http.MethodPost,
 			requestContentType: "text/plain",
@@ -275,6 +301,27 @@ func TestMytHandler(t *testing.T) {
 			},
 		},
 		{
+			name: fmt.Sprintf("%s JSON positive test #2", http.MethodPost),
+			requestBody: `[
+    {
+        "correlation_id": "1",
+        "original_url": "https://t.me/dvachannel/93381"
+    },
+    {
+        "correlation_id": "2",
+        "original_url": "https://t.me/moscowach/14075"
+    }
+]`,
+			requestPath:        "/api/shorten/batch",
+			requestMethod:      http.MethodPost,
+			requestContentType: "application/json",
+			want: want{
+				code:           http.StatusCreated,
+				responseFormat: true,
+				contentType:    "application/json",
+			},
+		},
+		{
 			name:               fmt.Sprintf("%s JSON negative test #1", http.MethodPost),
 			requestBody:        `{"link":"https://codepen.io"}`,
 			requestPath:        "/api/shorten",
@@ -282,7 +329,6 @@ func TestMytHandler(t *testing.T) {
 			requestContentType: "",
 			want: want{
 				code: http.StatusUnsupportedMediaType,
-				//contentType: "application/json",
 			},
 		},
 		{
@@ -330,7 +376,6 @@ func TestMytHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reqBoby := []byte(tt.requestBody)
-			//var body = []byte(tt.requestBody)
 			reqURL := tt.requestPath + tt.request
 			var request *http.Request
 			if len(tt.requestCompressBody) > 0 {

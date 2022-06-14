@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"AlexSarva/go-shortener/crypto"
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/models"
+	"AlexSarva/go-shortener/storage"
 	"AlexSarva/go-shortener/utils"
 	"bytes"
 	"compress/gzip"
@@ -10,14 +12,18 @@ import (
 	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const ShortLen int = 10
+
+var ErrNotValidCookie = errors.New("valid cookie does not found")
 
 // Обработка сжатых запросов
 func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
@@ -30,7 +36,7 @@ func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
 		}
 		defer r.Body.Close()
 
-		log.Println("Получен Сжатый Body")
+		log.Println("compressed request")
 
 		newR, gzErr := gzip.NewReader(ioutil.NopCloser(bytes.NewBuffer(bodyBytes)))
 		if gzErr != nil {
@@ -39,15 +45,9 @@ func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
 		}
 		defer newR.Close()
 
-		//bb, err2 := ioutil.ReadAll(r)
-		//if err2 != nil {
-		//	return nil, err2
-		//}
-		log.Println("Возвращен нормальный Body")
 		return newR, nil
 	} else {
-		log.Println("Получен Обычный Body")
-		// Not compressed
+		log.Println("no compressed request")
 		return r.Body, nil
 	}
 }
@@ -62,9 +62,22 @@ func errorResponse(w http.ResponseWriter, message, errContentType string, httpSt
 	w.Write(jsonResp)
 }
 
+func PingDB(database *app.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ping := database.Repo.Ping()
+		if ping {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+	}
+}
+
 func GetRedirectURL(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
+		log.Println(id)
 		res, er := database.Repo.GetURL(id)
 		if er != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -87,12 +100,43 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 	}
 }
 
+func GetUserURLs(database *app.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		userID, userIDErr := getCookie(r)
+		if userIDErr != nil {
+			log.Println(userIDErr)
+			w.WriteHeader(http.StatusNoContent)
+			return
+
+		}
+		res, er := database.Repo.GetUserURLs(userID.String())
+		if er != nil {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		resultList, resultListErr := json.Marshal(res)
+		if resultListErr != nil {
+			panic(resultListErr)
+		}
+		_, err := w.Write(resultList)
+		if err != nil {
+			log.Println("Something wrong", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+
+}
+
 func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains("text/plain, text/xml, text/plain, text/plain; charset=utf-8, application/x-gzip", r.Header.Get("Content-Type")) {
 			errorResponse(w, "Content Type is not a text/plain or application/x-gzip", "text/plain", http.StatusUnsupportedMediaType)
 			return
 		}
+		cookie, _ := r.Cookie("session")
+		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
 
 		b, err := readBodyBytes(r)
 		if err != nil {
@@ -105,14 +149,20 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 			w.WriteHeader(http.StatusBadRequest)
 			log.Println(bodyErr.Error())
 		}
-
 		rawURL := string(body)
 		log.Println(rawURL)
 		if utils.ValidateURL(rawURL) {
 			id := utils.ShortURLGenerator(ShortLen)
-			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL)
-			if dbErr != nil {
-				log.Println(dbErr)
+			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL, userID.String())
+			if dbErr == storage.ErrDuplicatePK {
+				w.Header().Set("Content-Type", "text/plain")
+				w.WriteHeader(http.StatusConflict)
+				existShortURL, _ := database.Repo.GetURLByRaw(rawURL)
+				_, err := w.Write([]byte(existShortURL.ShortURL))
+				if err != nil {
+					log.Println("Something wrong", err)
+				}
+				return
 			}
 			w.Header().Set("Content-Type", "text/plain")
 			w.WriteHeader(http.StatusCreated)
@@ -144,6 +194,9 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 			return
 		}
 
+		cookie, _ := r.Cookie("session")
+		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
+
 		var newURL models.NewURL
 		var unmarshalErr *json.UnmarshalTypeError
 
@@ -168,9 +221,24 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 
 		if utils.ValidateURL(newURL.URL) {
 			id := utils.ShortURLGenerator(ShortLen)
-			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL)
-			if dbErr != nil {
-				log.Println(dbErr)
+			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL, userID.String())
+			if dbErr == storage.ErrDuplicatePK {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusConflict)
+				existShortURL, _ := database.Repo.GetURLByRaw(newURL.URL)
+
+				existURL := models.ResultURL{
+					Result: existShortURL.ShortURL,
+				}
+				bodyURL, bodyErr := json.Marshal(existURL)
+				if bodyErr != nil {
+					panic(bodyErr)
+				}
+				_, err := w.Write(bodyURL)
+				if err != nil {
+					log.Println("Something wrong", err)
+				}
+				return
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
@@ -196,6 +264,91 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 				log.Println("Something wrong", err)
 			}
 		}
+	}
+}
+
+func MakeBatchURLByJSON(cfg *models.Config, database *app.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		headerContentTtype := r.Header.Get("Content-Type")
+
+		if !strings.Contains("application/json, application/x-gzip", headerContentTtype) {
+			errorResponse(w, "Content Type is not application/json or application/x-gzip", "application/json", http.StatusUnsupportedMediaType)
+			return
+		}
+
+		var rawBatchURL []models.RawBatchURL
+		var resultBatchURL []models.ResultBatchURL
+		var insertBatchURL []models.URL
+		var unmarshalErr *json.UnmarshalTypeError
+
+		b, err := readBodyBytes(r)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			log.Println(err.Error())
+		}
+
+		decoder := json.NewDecoder(b)
+		decoder.DisallowUnknownFields()
+		err = decoder.Decode(&rawBatchURL)
+
+		if err != nil {
+			log.Println(err)
+			if errors.As(err, &unmarshalErr) {
+				errorResponse(w, "Bad Request. Wrong Type provided for field "+unmarshalErr.Field, "application/json", http.StatusBadRequest)
+			} else {
+				errorResponse(w, "Bad Request "+err.Error(), "application/json", http.StatusBadRequest)
+			}
+			return
+		}
+
+		cookie, _ := r.Cookie("session")
+		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
+
+		for _, urlInfo := range rawBatchURL {
+			if utils.ValidateURL(urlInfo.RawURL) {
+				id := utils.ShortURLGenerator(ShortLen)
+				shortURL := cfg.BaseURL + "/" + id
+				currentURLInsert := models.URL{
+					ID:       id,
+					RawURL:   urlInfo.RawURL,
+					ShortURL: shortURL,
+					Created:  time.Now(),
+					UserID:   userID.String(),
+				}
+				currentURLResult := models.ResultBatchURL{
+					CorrelationID: urlInfo.CorrelationID,
+					ShortURL:      shortURL,
+				}
+				insertBatchURL = append(insertBatchURL, currentURLInsert)
+				resultBatchURL = append(resultBatchURL, currentURLResult)
+
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+				_, err := w.Write([]byte("It's not URL!"))
+				if err != nil {
+					log.Println("Something wrong", err)
+				}
+			}
+		}
+		dbErr := database.Repo.InsertMany(insertBatchURL)
+		if dbErr != nil {
+			log.Println(dbErr)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		bodyURL, bodyErr := json.Marshal(resultBatchURL)
+		if bodyErr != nil {
+			panic(bodyErr)
+		}
+		_, writeErr := w.Write(bodyURL)
+		if writeErr != nil {
+			log.Println("Something wrong", err)
+		}
+
+		log.Printf("%+v\n", insertBatchURL)
+		log.Printf("%+v\n", resultBatchURL)
 	}
 }
 
@@ -241,20 +394,60 @@ func GzipHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+func GenerateCookie(userID uuid.UUID) http.Cookie {
+	session := crypto.Encrypt(userID, crypto.SecretKey)
+	expiration := time.Now().Add(365 * 24 * time.Hour)
+	cookie := http.Cookie{Name: "session", Value: session, Expires: expiration, Path: "/"}
+	return cookie
+}
+
+func getCookie(r *http.Request) (uuid.UUID, error) {
+	cookie, cookieErr := r.Cookie("session")
+	if cookieErr != nil {
+		log.Println(cookieErr)
+		return uuid.UUID{}, ErrNotValidCookie
+	}
+	userID, cookieDecryptErr := crypto.Decrypt(cookie.Value, crypto.SecretKey)
+	if cookieDecryptErr != nil {
+		return uuid.UUID{}, cookieDecryptErr
+	}
+	return userID, nil
+
+}
+
+func CookieHandler(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		_, userIDErr := getCookie(r)
+		if userIDErr != nil {
+			log.Println(userIDErr)
+			userCookie := GenerateCookie(uuid.New())
+			log.Println(userCookie)
+			r.AddCookie(&userCookie)
+			http.SetCookie(w, &userCookie)
+		}
+		next.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(fn)
+}
+
 func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(CookieHandler)
 	r.Use(GzipHandler)
 	r.Use(middleware.AllowContentEncoding("gzip"))
 	r.Use(middleware.AllowContentType("application/json", "text/plain", "application/x-gzip"))
 	r.Use(middleware.Compress(5, gzipContentTypes))
 
+	r.Get("/ping", PingDB(database))
 	r.Get("/{id}", GetRedirectURL(database))
 	r.Post("/", MakeShortURLHandler(cfg, database))
 	r.Post("/api/shorten", MakeShortURLByJSON(cfg, database))
+	r.Post("/api/shorten/batch", MakeBatchURLByJSON(cfg, database))
+	r.Get("/api/user/urls", GetUserURLs(database))
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
