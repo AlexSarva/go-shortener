@@ -353,7 +353,11 @@ func MakeBatchURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 	}
 }
 
-func DeleteAsync(database *app.Database) http.HandlerFunc {
+func AddDeleteURLs(urls models.DeleteURL, deleteCh chan models.DeleteURL) {
+	deleteCh <- urls
+}
+
+func DeleteAsync(deleteCh chan models.DeleteURL) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		headerContentTtype := r.Header.Get("Content-Type")
@@ -363,7 +367,7 @@ func DeleteAsync(database *app.Database) http.HandlerFunc {
 			return
 		}
 
-		var deleteBatchURL *[]string
+		var deleteBatchURL []string
 		var unmarshalErr *json.UnmarshalTypeError
 		b, err := readBodyBytes(r)
 		if err != nil {
@@ -388,10 +392,10 @@ func DeleteAsync(database *app.Database) http.HandlerFunc {
 		cookie, _ := r.Cookie("session")
 		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
 
-		dbErr := database.Repo.Delete(userID.String(), *deleteBatchURL)
-		if dbErr != nil {
-			log.Println(dbErr)
-		}
+		go AddDeleteURLs(models.DeleteURL{
+			UserID: userID.String(),
+			URLs:   deleteBatchURL,
+		}, deleteCh)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusAccepted)
@@ -478,7 +482,7 @@ func CookieHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
+func MyHandler(cfg *models.Config, database *app.Database, deleteCh chan models.DeleteURL) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -496,7 +500,7 @@ func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
 	r.Post("/api/shorten", MakeShortURLByJSON(cfg, database))
 	r.Post("/api/shorten/batch", MakeBatchURLByJSON(cfg, database))
 	r.Get("/api/user/urls", GetUserURLs(database))
-	r.Delete("/api/user/urls", DeleteAsync(database))
+	r.Delete("/api/user/urls", DeleteAsync(deleteCh))
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)

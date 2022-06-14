@@ -27,10 +27,6 @@ type NewURL struct {
 	URL string `json:"url"`
 }
 
-type DeleteURLs struct {
-	URLs []string `json:"delete_urls"`
-}
-
 type ResultURL struct {
 	Result string `json:"result"`
 }
@@ -44,20 +40,25 @@ type AllUserURLs struct {
 	URLList []UserURL
 }
 
-type Queue struct {
-	ch chan *NewURL
+type DeleteURL struct {
+	UserID string
+	URLs   []string
 }
 
-func NewQueue(itemsCnt int) *Queue {
+type Queue struct {
+	ch chan *DeleteURL
+}
+
+func NewQueue() *Queue {
 	return &Queue{
-		ch: make(chan *NewURL, itemsCnt),
+		ch: make(chan *DeleteURL),
 	}
 }
 
-func (q *Queue) Push(t *NewURL) {
+func (q *Queue) Push(t *DeleteURL) {
 	q.ch <- t
 }
 
-func (q *Queue) PopWait() *NewURL {
+func (q *Queue) PopWait() *DeleteURL {
 	return <-q.ch
 }

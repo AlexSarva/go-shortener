@@ -9,6 +9,16 @@ import (
 	"log"
 )
 
+func readChan(delCh chan models.DeleteURL, database *app.Database) {
+	for v := range delCh {
+		log.Println(v)
+		err := database.Repo.Delete(v.UserID, v.URLs)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+}
+
 func main() {
 	var cfg models.Config
 	// Приоритет будет у ФЛАГОВ
@@ -28,7 +38,9 @@ func main() {
 	DB := *app.NewStorage(cfg.FileStorage, cfg.Database)
 	ping := DB.Repo.Ping()
 	log.Println(ping)
-	MainApp := server.NewMyServer(&cfg, &DB)
+	deleteCh := make(chan models.DeleteURL)
+	MainApp := server.NewMyServer(&cfg, &DB, deleteCh)
+	go readChan(deleteCh, &DB)
 	if err := MainApp.Run(); err != nil {
 		log.Fatalf("%s", err.Error())
 	}
