@@ -100,7 +100,7 @@ func (d *PostgresDB) GetUserURLs(userID string) ([]models.UserURL, error) {
 }
 
 func (d *PostgresDB) Delete(userID string, shortURLs []string) error {
-	query := "UPDATE public.urls SET deleted=1 WHERE user_id=? AND short_url IN (?)"
+	query := "UPDATE public.urls SET deleted=1 WHERE user_id=? AND id IN (?)"
 	qry, args, err := sqlx.In(query, userID, shortURLs)
 	if err != nil {
 		return err
