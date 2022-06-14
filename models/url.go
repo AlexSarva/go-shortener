@@ -1,12 +1,15 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type URL struct {
 	ID       string    `json:"id" db:"id"`
 	ShortURL string    `json:"short_url" db:"short_url"`
 	RawURL   string    `json:"raw_url" db:"raw_url"`
 	UserID   string    `json:"user_id" db:"user_id"`
+	Deleted  int       `json:"deleted" db:"deleted"`
 	Created  time.Time `json:"created,omitempty" db:"created"`
 }
 
@@ -24,6 +27,10 @@ type NewURL struct {
 	URL string `json:"url"`
 }
 
+type DeleteURLs struct {
+	URLs []string `json:"delete_urls"`
+}
+
 type ResultURL struct {
 	Result string `json:"result"`
 }
@@ -35,4 +42,22 @@ type UserURL struct {
 
 type AllUserURLs struct {
 	URLList []UserURL
+}
+
+type Queue struct {
+	ch chan *NewURL
+}
+
+func NewQueue(itemsCnt int) *Queue {
+	return &Queue{
+		ch: make(chan *NewURL, itemsCnt),
+	}
+}
+
+func (q *Queue) Push(t *NewURL) {
+	q.ch <- t
+}
+
+func (q *Queue) PopWait() *NewURL {
+	return <-q.ch
 }

@@ -89,3 +89,7 @@ func (s *URLLocalStorage) GetUserURLs(userID string) ([]models.UserURL, error) {
 		return URLList, ErrUserURLsNotFound
 	}
 }
+
+func (s *URLLocalStorage) Delete(userID string, shortURLs []string) error {
+	return nil
+}
