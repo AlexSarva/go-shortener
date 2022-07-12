@@ -152,3 +152,7 @@ func (f *fileStorage) GetUserURLs(userID string) ([]models.UserURL, error) {
 		return URLList, ErrUserURLsNotFound
 	}
 }
+
+func (f *fileStorage) Delete(userID string, shortURLs []string) error {
+	return nil
+}

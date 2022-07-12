@@ -368,8 +368,8 @@ func TestMytHandler(t *testing.T) {
 			},
 		},
 	}
-
-	Handler := *handlers.MyHandler(&cfg, database)
+	delCh := make(chan models.DeleteURL)
+	Handler := *handlers.MyHandler(&cfg, database, delCh)
 	ts := httptest.NewServer(&Handler)
 	defer ts.Close()
 

@@ -14,4 +14,5 @@ type Repo interface {
 	GetUserURLs(userID string) ([]models.UserURL, error)
 	Ping() bool
 	GetURLByRaw(rawURL string) (*models.URL, error)
+	Delete(userID string, urls []string) error
 }

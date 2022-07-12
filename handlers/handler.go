@@ -87,6 +87,10 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 			}
 			return
 		}
+		if res.Deleted == 1 {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		longURL := res.RawURL
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Add("Location", longURL)
@@ -346,9 +350,57 @@ func MakeBatchURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 		if writeErr != nil {
 			log.Println("Something wrong", err)
 		}
+	}
+}
 
-		log.Printf("%+v\n", insertBatchURL)
-		log.Printf("%+v\n", resultBatchURL)
+func AddDeleteURLs(urls models.DeleteURL, deleteCh chan models.DeleteURL) {
+	deleteCh <- urls
+}
+
+func DeleteAsync(deleteCh chan models.DeleteURL) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		headerContentTtype := r.Header.Get("Content-Type")
+
+		if !strings.Contains("application/json, application/x-gzip", headerContentTtype) {
+			errorResponse(w, "Content Type is not application/json or application/x-gzip", "application/json", http.StatusUnsupportedMediaType)
+			return
+		}
+
+		var deleteBatchURL []string
+		var unmarshalErr *json.UnmarshalTypeError
+		b, err := readBodyBytes(r)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			log.Println(err.Error())
+		}
+
+		decoder := json.NewDecoder(b)
+		decoder.DisallowUnknownFields()
+		err = decoder.Decode(&deleteBatchURL)
+
+		if err != nil {
+			log.Println(err)
+			if errors.As(err, &unmarshalErr) {
+				errorResponse(w, "Bad Request. Wrong Type provided for field "+unmarshalErr.Field, "application/json", http.StatusBadRequest)
+			} else {
+				errorResponse(w, "Bad Request "+err.Error(), "application/json", http.StatusBadRequest)
+			}
+			return
+		}
+
+		cookie, _ := r.Cookie("session")
+		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
+
+		go AddDeleteURLs(models.DeleteURL{
+			UserID: userID.String(),
+			URLs:   deleteBatchURL,
+		}, deleteCh)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+
+		log.Printf("%+v\n", deleteBatchURL)
 	}
 }
 
@@ -430,7 +482,7 @@ func CookieHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
+func MyHandler(cfg *models.Config, database *app.Database, deleteCh chan models.DeleteURL) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -448,6 +500,7 @@ func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
 	r.Post("/api/shorten", MakeShortURLByJSON(cfg, database))
 	r.Post("/api/shorten/batch", MakeBatchURLByJSON(cfg, database))
 	r.Get("/api/user/urls", GetUserURLs(database))
+	r.Delete("/api/user/urls", DeleteAsync(deleteCh))
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
@@ -458,7 +511,7 @@ func MyHandler(cfg *models.Config, database *app.Database) *chi.Mux {
 	})
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		_, naErr := w.Write([]byte("sorry, only GET and POST methods are supported."))
+		_, naErr := w.Write([]byte("sorry, only GET, POST and DELETE methods are supported."))
 		if naErr != nil {
 			log.Println(naErr)
 		}
