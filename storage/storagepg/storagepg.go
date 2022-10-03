@@ -21,6 +21,7 @@ func NewPostgresDBConnection(config string) *PostgresDB {
 		short_url text,
 		raw_url text primary key,
 		user_id text,
+		deleted int default 0,
 		created timestamp
 	);`
 	db.MustExec(schema)
@@ -72,7 +73,7 @@ func (d *PostgresDB) InsertMany(bathURL []models.URL) error {
 
 func (d *PostgresDB) GetURL(id string) (*models.URL, error) {
 	var getURL models.URL
-	err := d.database.Get(&getURL, "SELECT id, short_url, raw_url, user_id, created FROM public.urls WHERE id=$1", id)
+	err := d.database.Get(&getURL, "SELECT id, short_url, raw_url, user_id, deleted, created FROM public.urls WHERE id=$1", id)
 	if err != nil {
 		log.Println(err)
 	}
@@ -81,7 +82,7 @@ func (d *PostgresDB) GetURL(id string) (*models.URL, error) {
 
 func (d *PostgresDB) GetURLByRaw(rawURL string) (*models.URL, error) {
 	var getURL models.URL
-	err := d.database.Get(&getURL, "SELECT id, short_url, raw_url, user_id, created FROM public.urls WHERE raw_url=$1", rawURL)
+	err := d.database.Get(&getURL, "SELECT id, short_url, raw_url, user_id, deleted, created FROM public.urls WHERE raw_url=$1", rawURL)
 	if err != nil {
 		log.Println(err)
 	}
@@ -96,4 +97,18 @@ func (d *PostgresDB) GetUserURLs(userID string) ([]models.UserURL, error) {
 		log.Println(err)
 	}
 	return allURLs, err
+}
+
+func (d *PostgresDB) Delete(userID string, shortURLs []string) error {
+	query := "UPDATE public.urls SET deleted=1 WHERE user_id=? AND id IN (?)"
+	qry, args, err := sqlx.In(query, userID, shortURLs)
+	if err != nil {
+		return err
+	}
+
+	if _, execErr := d.database.Exec(d.database.Rebind(qry), args...); execErr != nil {
+		log.Println(execErr)
+		return execErr
+	}
+	return nil
 }

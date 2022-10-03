@@ -16,8 +16,9 @@ type MyServer struct {
 	httpServer *http.Server
 }
 
-func NewMyServer(cfg *models.Config, database *app.Database) *MyServer {
-	handler := handlers.MyHandler(cfg, database)
+func NewMyServer(cfg *models.Config, database *app.Database, deleteCh chan models.DeleteURL) *MyServer {
+
+	handler := handlers.MyHandler(cfg, database, deleteCh)
 	server := http.Server{
 		Addr:    cfg.ServerAddress,
 		Handler: handler,

@@ -3,6 +3,7 @@ package storagelocal
 import (
 	"AlexSarva/go-shortener/models"
 	"errors"
+	"log"
 	"sync"
 	"time"
 )
@@ -37,6 +38,7 @@ func (s *URLLocalStorage) InsertURL(id, rawURL, baseURL, userID string) error {
 	s.mutex.Lock()
 	s.URLList[id] = URLData
 	s.mutex.Unlock()
+	log.Println("123")
 	return nil
 }
 
@@ -88,4 +90,8 @@ func (s *URLLocalStorage) GetUserURLs(userID string) ([]models.UserURL, error) {
 	} else {
 		return URLList, ErrUserURLsNotFound
 	}
+}
+
+func (s *URLLocalStorage) Delete(userID string, shortURLs []string) error {
+	return nil
 }
