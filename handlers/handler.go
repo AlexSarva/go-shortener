@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
@@ -36,7 +35,7 @@ func ReadBodyBytes(r *http.Request) (io.ReadCloser, error) {
 	// GZIP decode
 	if len(r.Header["Content-Encoding"]) > 0 && r.Header["Content-Encoding"][0] == "gzip" {
 		// Read body
-		bodyBytes, readErr := ioutil.ReadAll(r.Body)
+		bodyBytes, readErr := io.ReadAll(r.Body)
 		if readErr != nil {
 			return nil, readErr
 		}
@@ -44,7 +43,7 @@ func ReadBodyBytes(r *http.Request) (io.ReadCloser, error) {
 
 		log.Println("compressed request")
 
-		newR, gzErr := gzip.NewReader(ioutil.NopCloser(bytes.NewBuffer(bodyBytes)))
+		newR, gzErr := gzip.NewReader(io.NopCloser(bytes.NewBuffer(bodyBytes)))
 		if gzErr != nil {
 			log.Println(gzErr)
 			return nil, gzErr
@@ -435,8 +434,8 @@ func MakeBatchURLByJSON(database *app.Database) http.HandlerFunc {
 
 			} else {
 				w.WriteHeader(http.StatusBadRequest)
-				_, err := w.Write([]byte("It's not URL!"))
-				if err != nil {
+				_, notURLErr := w.Write([]byte("It's not URL!"))
+				if notURLErr != nil {
 					log.Println("Something wrong", err)
 				}
 			}

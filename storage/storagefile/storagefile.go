@@ -14,8 +14,8 @@ var ErrURLNotFound = errors.New("URL not found")
 var ErrUserURLsNotFound = errors.New("no URLs found by such userID")
 
 type fileStorage struct {
-	file   string
 	writer *bufio.Writer
+	file   string
 }
 
 func NewFileStorage(fileName string) (*fileStorage, error) {

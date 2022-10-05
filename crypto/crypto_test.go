@@ -20,8 +20,8 @@ func TestDecrypt(t *testing.T) {
 		secret     []byte
 	}
 	type want struct {
-		uuid    uuid.UUID
 		wantErr error
+		uuid    uuid.UUID
 		equal   bool
 	}
 	tests := []struct {

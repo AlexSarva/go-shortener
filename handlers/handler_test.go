@@ -54,12 +54,12 @@ func TestMyHandler(t *testing.T) {
 		log.Println(insErr)
 	}
 	type want struct {
-		code            int
 		location        string
 		contentType     string
 		contentEncoding string
-		responseFormat  bool
 		response        string
+		code            int
+		responseFormat  bool
 	}
 
 	tests := []struct {
