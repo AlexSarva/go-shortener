@@ -26,7 +26,7 @@ func BenchmarkCreateShortUrl(b *testing.B) {
 		b.StopTimer() // останавливаем таймер
 		link := ShortURLGenerator(length)
 		b.StartTimer() // возобновляем таймер
-		CreateShortUrl(path, link)
+		CreateShortURL(path, link)
 	}
 }
 
@@ -39,7 +39,7 @@ func BenchmarkValidateShortURL(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer() // останавливаем таймер
 		id := ShortURLGenerator(length)
-		link := CreateShortUrl(path, id)
+		link := CreateShortURL(path, id)
 		b.StartTimer() // возобновляем таймер
 		ValidateShortURL(link, path, length)
 	}

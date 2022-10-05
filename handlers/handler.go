@@ -213,7 +213,7 @@ func MakeShortURLHandler(database *app.Database) http.HandlerFunc {
 		log.Println(rawURL)
 		if utils.ValidateURL(rawURL) {
 			id := utils.ShortURLGenerator(ShortLen)
-			shortURL := utils.CreateShortUrl(cfg.BaseURL, id)
+			shortURL := utils.CreateShortURL(cfg.BaseURL, id)
 			dbErr := database.Repo.InsertURL(id, rawURL, shortURL, userID.String())
 			if dbErr == storage.ErrDuplicatePK {
 				w.Header().Set("Content-Type", "text/plain")
@@ -302,7 +302,7 @@ func MakeShortURLByJSON(database *app.Database) http.HandlerFunc {
 
 		if utils.ValidateURL(newURL.URL) {
 			id := utils.ShortURLGenerator(ShortLen)
-			shortURL := utils.CreateShortUrl(cfg.BaseURL, id)
+			shortURL := utils.CreateShortURL(cfg.BaseURL, id)
 			dbErr := database.Repo.InsertURL(id, newURL.URL, shortURL, userID.String())
 			if dbErr == storage.ErrDuplicatePK {
 				w.Header().Set("Content-Type", "application/json")
@@ -417,7 +417,7 @@ func MakeBatchURLByJSON(database *app.Database) http.HandlerFunc {
 		for _, urlInfo := range rawBatchURL {
 			if utils.ValidateURL(urlInfo.RawURL) {
 				id := utils.ShortURLGenerator(ShortLen)
-				shortURL := utils.CreateShortUrl(cfg.BaseURL, id)
+				shortURL := utils.CreateShortURL(cfg.BaseURL, id)
 				currentURLInsert := models.URL{
 					ID:       id,
 					RawURL:   urlInfo.RawURL,

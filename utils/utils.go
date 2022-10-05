@@ -13,8 +13,8 @@ func ValidateURL(rawText string) bool {
 	return re.Match([]byte(rawText))
 }
 
-// CreateShortUrl create short url by concat base url of the service and generated id
-func CreateShortUrl(path, shortPath string) string {
+// CreateShortURL create short url by concat base url of the service and generated id
+func CreateShortURL(path, shortPath string) string {
 	return fmt.Sprintf("%s/%s", path, shortPath)
 }
 
