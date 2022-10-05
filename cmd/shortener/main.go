@@ -12,6 +12,18 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
+func version() {
+	log.Printf("Build version: %s\n", buildVersion)
+	log.Printf("Build date: %s\n", buildDate)
+	log.Printf("Build commit: %s\n", buildCommit)
+}
+
 func readChan(delCh chan models.DeleteURL, database *app.Database) {
 	for v := range delCh {
 		log.Println(v)
@@ -23,6 +35,7 @@ func readChan(delCh chan models.DeleteURL, database *app.Database) {
 }
 
 func main() {
+	version()
 	var cfg models.Config
 	// Приоритет будет у ФЛАГОВ
 	// Загружаем конфиг из переменных окружения

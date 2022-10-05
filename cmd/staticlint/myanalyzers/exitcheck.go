@@ -24,19 +24,27 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		ast.Inspect(file, func(node ast.Node) bool {
-			if f, ok := node.(*ast.FuncDecl); ok {
-				if f.Name.Name == "main" {
-					for _, s := range f.Body.List {
-						if expr, ok := s.(*ast.ExprStmt); ok {
-							if call, ok := expr.X.(*ast.CallExpr); ok {
-								if selector, ok := call.Fun.(*ast.SelectorExpr); ok {
-									i := selector.X.(*ast.Ident)
-									if i.Name == "os" && selector.Sel.Name == "Exit" {
-										pass.Reportf(selector.Pos(), "Exit method call")
-									}
-								}
-							}
-						}
+			f, ok := node.(*ast.FuncDecl)
+			if !ok {
+				return true
+			}
+			if f.Name.Name == "main" {
+				for _, s := range f.Body.List {
+					expr, exprOk := s.(*ast.ExprStmt)
+					if !exprOk {
+						return true
+					}
+					call, callOk := expr.X.(*ast.CallExpr)
+					if !callOk {
+						return true
+					}
+					selector, selectorOk := call.Fun.(*ast.SelectorExpr)
+					if !selectorOk {
+						return true
+					}
+					i := selector.X.(*ast.Ident)
+					if i.Name == "os" && selector.Sel.Name == "Exit" {
+						pass.Reportf(selector.Pos(), "Exit method call")
 					}
 				}
 			}
