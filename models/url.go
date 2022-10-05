@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// URL base struct for URLs in DB
 type URL struct {
 	ID       string    `json:"id" db:"id"`
 	ShortURL string    `json:"short_url" db:"short_url"`
@@ -43,22 +44,4 @@ type AllUserURLs struct {
 type DeleteURL struct {
 	UserID string
 	URLs   []string
-}
-
-type Queue struct {
-	ch chan *DeleteURL
-}
-
-func NewQueue() *Queue {
-	return &Queue{
-		ch: make(chan *DeleteURL),
-	}
-}
-
-func (q *Queue) Push(t *DeleteURL) {
-	q.ch <- t
-}
-
-func (q *Queue) PopWait() *DeleteURL {
-	return <-q.ch
 }

@@ -5,17 +5,19 @@ import (
 	"compress/gzip"
 )
 
+// GzipCompress compress data into gzip format
 type GzipCompress struct {
 	Data []byte
 }
 
+// NewGzipCompress initializer of GzipCompress struct
 func NewGzipCompress(data []byte) *GzipCompress {
 	return &GzipCompress{
 		Data: data,
 	}
 }
 
-// Compress GzipCompress сжимает слайс байт.
+// Compress GzipCompress compress slice of bites.
 func (g GzipCompress) Compress() []byte {
 	var b bytes.Buffer
 

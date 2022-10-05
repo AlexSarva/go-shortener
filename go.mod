@@ -8,5 +8,6 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/jmoiron/sqlx v1.3.5 // indirect
 	github.com/lib/pq v1.10.6 // indirect
+	github.com/sarulabs/di v2.0.0+incompatible // indirect
 	github.com/stretchr/testify v1.7.1 // indirect
 )

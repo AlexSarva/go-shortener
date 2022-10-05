@@ -24,14 +24,14 @@ func NewURLLocalStorage() *URLLocalStorage {
 }
 
 func (s *URLLocalStorage) Ping() bool {
-	return false
+	return true
 }
 
-func (s *URLLocalStorage) InsertURL(id, rawURL, baseURL, userID string) error {
+func (s *URLLocalStorage) InsertURL(id, rawURL, shortURL, userID string) error {
 	URLData := &models.URL{
 		ID:       id,
 		RawURL:   rawURL,
-		ShortURL: baseURL + "/" + id,
+		ShortURL: shortURL,
 		Created:  time.Now(),
 		UserID:   userID,
 	}

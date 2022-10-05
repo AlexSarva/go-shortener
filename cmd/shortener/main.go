@@ -1,12 +1,15 @@
 package main
 
 import (
+	"AlexSarva/go-shortener/constant"
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/models"
 	"AlexSarva/go-shortener/server"
 	"flag"
-	"github.com/caarlos0/env/v6"
 	"log"
+	_ "net/http/pprof"
+
+	"github.com/caarlos0/env/v6"
 )
 
 func readChan(delCh chan models.DeleteURL, database *app.Database) {
@@ -34,12 +37,18 @@ func main() {
 	flag.StringVar(&cfg.FileStorage, "f", cfg.FileStorage, "filepath of short links file storage")
 	flag.StringVar(&cfg.Database, "d", cfg.Database, "database config")
 	flag.Parse()
+
+	GlobalContainerErr := constant.BuildContainer(cfg)
+	if GlobalContainerErr != nil {
+		log.Println(GlobalContainerErr)
+	}
+
 	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage)
-	DB := *app.NewStorage(cfg.FileStorage, cfg.Database)
+	DB := *app.NewStorage()
 	ping := DB.Repo.Ping()
 	log.Println(ping)
 	deleteCh := make(chan models.DeleteURL)
-	MainApp := server.NewMyServer(&cfg, &DB, deleteCh)
+	MainApp := server.NewMyServer(&DB, deleteCh)
 	go readChan(deleteCh, &DB)
 	if err := MainApp.Run(); err != nil {
 		log.Fatalf("%s", err.Error())

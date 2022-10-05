@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"AlexSarva/go-shortener/constant"
 	"AlexSarva/go-shortener/crypto"
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/models"
@@ -10,23 +11,28 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/google/uuid"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
+// ShortLen length of the short URL
 const ShortLen int = 10
 
+// GzipContentTypes accepted content types
+const GzipContentTypes = "application/x-gzip, application/javascript, application/json, text/css, text/html, text/plain, text/xml"
+
+// ErrNotValidCookie expects when cookie not found or not valid
 var ErrNotValidCookie = errors.New("valid cookie does not found")
 
-// Обработка сжатых запросов
-func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
+// ReadBodyBytes handling compressed requests
+func ReadBodyBytes(r *http.Request) (io.ReadCloser, error) {
 	// GZIP decode
 	if len(r.Header["Content-Encoding"]) > 0 && r.Header["Content-Encoding"][0] == "gzip" {
 		// Read body
@@ -52,8 +58,8 @@ func readBodyBytes(r *http.Request) (io.ReadCloser, error) {
 	}
 }
 
-// Дополнительный обработчик ошибок
-func errorResponse(w http.ResponseWriter, message, errContentType string, httpStatusCode int) {
+// ErrorResponse Additional error handler
+func ErrorResponse(w http.ResponseWriter, message, errContentType string, httpStatusCode int) {
 	w.Header().Set("Content-Type", errContentType)
 	w.WriteHeader(httpStatusCode)
 	resp := make(map[string]string)
@@ -62,6 +68,11 @@ func errorResponse(w http.ResponseWriter, message, errContentType string, httpSt
 	w.Write(jsonResp)
 }
 
+// PingDB check connection to DB
+//
+// Possible response codes:
+// 200 — connection OK;
+// 500 is an internal server error.
 func PingDB(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ping := database.Repo.Ping()
@@ -74,6 +85,16 @@ func PingDB(database *app.Database) http.HandlerFunc {
 	}
 }
 
+// GetRedirectURL accepts a shortened URL identifier as a URL parameter and returns a response with a 307 code
+// and the original URL in the Location HTTP header
+//
+// Handler: GET /{id}
+//
+// Possible response codes:
+// 201 — successful add links;
+// 400 - wrong link format;
+// 410 - link deleted from DB;
+// 500 is an internal server error.
 func GetRedirectURL(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
@@ -104,10 +125,30 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 	}
 }
 
+// GetUserURLs return to the user all the URLs they have ever shortened
+//
+// Handler: GET /api/user/urls
+//
+// Respond format:
+//
+//		[
+//	   {
+//	       "short_url": "http://localhost:9001/EpRZQwytfH",
+//	       "original_url": "https://t.me/moscowach"
+//	   },
+//	   {
+//	       "short_url": "http://localhost:9001/DnZneSjGhd",
+//	       "original_url": "https://clickhouse.com"
+//	   },
+//		]
+//
+// Possible response codes:
+// 200 - status OK;
+// 204 - no content by cookie;
 func GetUserURLs(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		userID, userIDErr := getCookie(r)
+		userID, userIDErr := GetCookie(r)
 		if userIDErr != nil {
 			log.Println(userIDErr)
 			w.WriteHeader(http.StatusNoContent)
@@ -133,16 +174,32 @@ func GetUserURLs(database *app.Database) http.HandlerFunc {
 
 }
 
-func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.HandlerFunc {
+// MakeShortURLHandler accepts URL string to shortener in the request body and returns a response with a 201 code
+// and shortened URL as a text string in the body.
+//
+// Handler: POST /
+//
+// Accept Content-Type: text/plain, text/xml, text/plain, text/plain; charset=utf-8, application/x-gzip
+//
+// Possible response codes:
+// 201 — successful add link;
+// 400 - wrong link format;
+// 409 - link already exists in DB;
+// 415 - wrong request type;
+// 500 is an internal server error.
+func MakeShortURLHandler(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains("text/plain, text/xml, text/plain, text/plain; charset=utf-8, application/x-gzip", r.Header.Get("Content-Type")) {
-			errorResponse(w, "Content Type is not a text/plain or application/x-gzip", "text/plain", http.StatusUnsupportedMediaType)
+			ErrorResponse(w, "Content Type is not a text/plain or application/x-gzip", "text/plain", http.StatusUnsupportedMediaType)
 			return
 		}
+
+		cfg := constant.GlobalContainer.Get("server-config").(models.Config)
+
 		cookie, _ := r.Cookie("session")
 		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
 
-		b, err := readBodyBytes(r)
+		b, err := ReadBodyBytes(r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			log.Println(err.Error())
@@ -157,7 +214,8 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 		log.Println(rawURL)
 		if utils.ValidateURL(rawURL) {
 			id := utils.ShortURLGenerator(ShortLen)
-			dbErr := database.Repo.InsertURL(id, rawURL, cfg.BaseURL, userID.String())
+			shortURL := utils.CreateShortUrl(cfg.BaseURL, id)
+			dbErr := database.Repo.InsertURL(id, rawURL, shortURL, userID.String())
 			if dbErr == storage.ErrDuplicatePK {
 				w.Header().Set("Content-Type", "text/plain")
 				w.WriteHeader(http.StatusConflict)
@@ -188,15 +246,35 @@ func MakeShortURLHandler(cfg *models.Config, database *app.Database) http.Handle
 	}
 }
 
-func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.HandlerFunc {
+// MakeShortURLByJSON accepts a JSON object  in the request body and returns an object {"result":"<shorten_url>"} in response.
+//
+// Handler: POST /api/shorten
+//
+// Request format:
+//
+//	{"url":"yandex.ru"}
+//
+// Respond format:
+//
+//	{"result":"http://localhost:9001/QBRfxXmcYp"}
+//
+// Possible response codes:
+// 201 — successful add links;
+// 400 - wrong link format;
+// 409 - link already exists in DB;
+// 415 - wrong request type;
+// 500 is an internal server error.
+func MakeShortURLByJSON(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		headerContentTtype := r.Header.Get("Content-Type")
 
 		if !strings.Contains("application/json, application/x-gzip", headerContentTtype) {
-			errorResponse(w, "Content Type is not application/json or application/x-gzip", "application/json", http.StatusUnsupportedMediaType)
+			ErrorResponse(w, "Content Type is not application/json or application/x-gzip", "application/json", http.StatusUnsupportedMediaType)
 			return
 		}
+
+		cfg := constant.GlobalContainer.Get("server-config").(models.Config)
 
 		cookie, _ := r.Cookie("session")
 		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
@@ -204,7 +282,7 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 		var newURL models.NewURL
 		var unmarshalErr *json.UnmarshalTypeError
 
-		b, err := readBodyBytes(r)
+		b, err := ReadBodyBytes(r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			log.Println(err.Error())
@@ -216,16 +294,17 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 
 		if err != nil {
 			if errors.As(err, &unmarshalErr) {
-				errorResponse(w, "Bad Request. Wrong Type provided for field "+unmarshalErr.Field, "application/json", http.StatusBadRequest)
+				ErrorResponse(w, "Bad Request. Wrong Type provided for field "+unmarshalErr.Field, "application/json", http.StatusBadRequest)
 			} else {
-				errorResponse(w, "Bad Request "+err.Error(), "application/json", http.StatusBadRequest)
+				ErrorResponse(w, "Bad Request "+err.Error(), "application/json", http.StatusBadRequest)
 			}
 			return
 		}
 
 		if utils.ValidateURL(newURL.URL) {
 			id := utils.ShortURLGenerator(ShortLen)
-			dbErr := database.Repo.InsertURL(id, newURL.URL, cfg.BaseURL, userID.String())
+			shortURL := utils.CreateShortUrl(cfg.BaseURL, id)
+			dbErr := database.Repo.InsertURL(id, newURL.URL, shortURL, userID.String())
 			if dbErr == storage.ErrDuplicatePK {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusConflict)
@@ -271,22 +350,49 @@ func MakeShortURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 	}
 }
 
-func MakeBatchURLByJSON(cfg *models.Config, database *app.Database) http.HandlerFunc {
+// MakeBatchURLByJSON accept in the request body a set of URLs to shorten in the format
+//
+// Handler: POST /api/shorten/batch
+//
+// Request format:
+//
+//	[{
+//	  "correlation_id": "1",
+//	  "original_url": "yandex.ru"
+//	},
+//	...]
+//
+// Respond format:
+//
+//	[{
+//		"correlation_id": "1",
+//		"short_url": "http://localhost:9001/QBRfxXmcYp"
+//	},
+//	...]
+//
+// Possible response codes:
+// 201 — successful add links;
+// 400 - wrong link format;
+// 415 - wrong request type;
+// 500 is an internal server error.
+func MakeBatchURLByJSON(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		headerContentTtype := r.Header.Get("Content-Type")
+		headerContentType := r.Header.Get("Content-Type")
 
-		if !strings.Contains("application/json, application/x-gzip", headerContentTtype) {
-			errorResponse(w, "Content Type is not application/json or application/x-gzip", "application/json", http.StatusUnsupportedMediaType)
+		if !strings.Contains("application/json, application/x-gzip", headerContentType) {
+			ErrorResponse(w, "Content Type is not application/json or application/x-gzip", "application/json", http.StatusUnsupportedMediaType)
 			return
 		}
+
+		cfg := constant.GlobalContainer.Get("server-config").(models.Config)
 
 		var rawBatchURL []models.RawBatchURL
 		var resultBatchURL []models.ResultBatchURL
 		var insertBatchURL []models.URL
 		var unmarshalErr *json.UnmarshalTypeError
 
-		b, err := readBodyBytes(r)
+		b, err := ReadBodyBytes(r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			log.Println(err.Error())
@@ -299,9 +405,9 @@ func MakeBatchURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 		if err != nil {
 			log.Println(err)
 			if errors.As(err, &unmarshalErr) {
-				errorResponse(w, "Bad Request. Wrong Type provided for field "+unmarshalErr.Field, "application/json", http.StatusBadRequest)
+				ErrorResponse(w, "Bad Request. Wrong Type provided for field "+unmarshalErr.Field, "application/json", http.StatusBadRequest)
 			} else {
-				errorResponse(w, "Bad Request "+err.Error(), "application/json", http.StatusBadRequest)
+				ErrorResponse(w, "Bad Request "+err.Error(), "application/json", http.StatusBadRequest)
 			}
 			return
 		}
@@ -312,7 +418,7 @@ func MakeBatchURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 		for _, urlInfo := range rawBatchURL {
 			if utils.ValidateURL(urlInfo.RawURL) {
 				id := utils.ShortURLGenerator(ShortLen)
-				shortURL := cfg.BaseURL + "/" + id
+				shortURL := utils.CreateShortUrl(cfg.BaseURL, id)
 				currentURLInsert := models.URL{
 					ID:       id,
 					RawURL:   urlInfo.RawURL,
@@ -353,23 +459,35 @@ func MakeBatchURLByJSON(cfg *models.Config, database *app.Database) http.Handler
 	}
 }
 
+// AddDeleteURLs async delete url from DB using channels
 func AddDeleteURLs(urls models.DeleteURL, deleteCh chan models.DeleteURL) {
 	deleteCh <- urls
 }
 
+// DeleteAsync accept in the request body a set of URLs to shorten in the format
+//
+// Handler: DELETE /api/user/urls
+//
+// Request format:
+// [ "a", "b", "c", "d", ...]
+//
+// Possible response codes:
+// 202 — accepted;
+// 400 - wrong link format;
+// 415 - wrong request type;
 func DeleteAsync(deleteCh chan models.DeleteURL) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		headerContentTtype := r.Header.Get("Content-Type")
 
 		if !strings.Contains("application/json, application/x-gzip", headerContentTtype) {
-			errorResponse(w, "Content Type is not application/json or application/x-gzip", "application/json", http.StatusUnsupportedMediaType)
+			ErrorResponse(w, "Content Type is not application/json or application/x-gzip", "application/json", http.StatusUnsupportedMediaType)
 			return
 		}
 
 		var deleteBatchURL []string
 		var unmarshalErr *json.UnmarshalTypeError
-		b, err := readBodyBytes(r)
+		b, err := ReadBodyBytes(r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			log.Println(err.Error())
@@ -382,9 +500,9 @@ func DeleteAsync(deleteCh chan models.DeleteURL) http.HandlerFunc {
 		if err != nil {
 			log.Println(err)
 			if errors.As(err, &unmarshalErr) {
-				errorResponse(w, "Bad Request. Wrong Type provided for field "+unmarshalErr.Field, "application/json", http.StatusBadRequest)
+				ErrorResponse(w, "Bad Request. Wrong Type provided for field "+unmarshalErr.Field, "application/json", http.StatusBadRequest)
 			} else {
-				errorResponse(w, "Bad Request "+err.Error(), "application/json", http.StatusBadRequest)
+				ErrorResponse(w, "Bad Request "+err.Error(), "application/json", http.StatusBadRequest)
 			}
 			return
 		}
@@ -404,18 +522,19 @@ func DeleteAsync(deleteCh chan models.DeleteURL) http.HandlerFunc {
 	}
 }
 
+// gzipWriter struct to write response in compressed form
 type gzipWriter struct {
 	http.ResponseWriter
 	Writer io.Writer
 }
 
+// Write response in compressed form
 func (w gzipWriter) Write(b []byte) (int, error) {
 	// w.Writer будет отвечать за gzip-сжатие, поэтому пишем в него
 	return w.Writer.Write(b)
 }
 
-var gzipContentTypes = "application/x-gzip, application/javascript, application/json, text/css, text/html, text/plain, text/xml"
-
+// GzipHandler middleware handle g-zipped requests
 func GzipHandler(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		// проверяем, что клиент поддерживает gzip-сжатие
@@ -426,7 +545,7 @@ func GzipHandler(next http.Handler) http.Handler {
 			return
 		}
 
-		if !strings.Contains(gzipContentTypes, r.Header.Get("Content-Type")) {
+		if !strings.Contains(GzipContentTypes, r.Header.Get("Content-Type")) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -446,43 +565,8 @@ func GzipHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func GenerateCookie(userID uuid.UUID) http.Cookie {
-	session := crypto.Encrypt(userID, crypto.SecretKey)
-	expiration := time.Now().Add(365 * 24 * time.Hour)
-	cookie := http.Cookie{Name: "session", Value: session, Expires: expiration, Path: "/"}
-	return cookie
-}
-
-func getCookie(r *http.Request) (uuid.UUID, error) {
-	cookie, cookieErr := r.Cookie("session")
-	if cookieErr != nil {
-		log.Println(cookieErr)
-		return uuid.UUID{}, ErrNotValidCookie
-	}
-	userID, cookieDecryptErr := crypto.Decrypt(cookie.Value, crypto.SecretKey)
-	if cookieDecryptErr != nil {
-		return uuid.UUID{}, cookieDecryptErr
-	}
-	return userID, nil
-
-}
-
-func CookieHandler(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		_, userIDErr := getCookie(r)
-		if userIDErr != nil {
-			log.Println(userIDErr)
-			userCookie := GenerateCookie(uuid.New())
-			log.Println(userCookie)
-			r.AddCookie(&userCookie)
-			http.SetCookie(w, &userCookie)
-		}
-		next.ServeHTTP(w, r)
-	}
-	return http.HandlerFunc(fn)
-}
-
-func MyHandler(cfg *models.Config, database *app.Database, deleteCh chan models.DeleteURL) *chi.Mux {
+// MyHandler base handler for all routes and middleware
+func MyHandler(database *app.Database, deleteCh chan models.DeleteURL) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -492,13 +576,13 @@ func MyHandler(cfg *models.Config, database *app.Database, deleteCh chan models.
 	r.Use(GzipHandler)
 	r.Use(middleware.AllowContentEncoding("gzip"))
 	r.Use(middleware.AllowContentType("application/json", "text/plain", "application/x-gzip"))
-	r.Use(middleware.Compress(5, gzipContentTypes))
-
+	r.Use(middleware.Compress(5, GzipContentTypes))
+	r.Mount("/debug", middleware.Profiler())
 	r.Get("/ping", PingDB(database))
 	r.Get("/{id}", GetRedirectURL(database))
-	r.Post("/", MakeShortURLHandler(cfg, database))
-	r.Post("/api/shorten", MakeShortURLByJSON(cfg, database))
-	r.Post("/api/shorten/batch", MakeBatchURLByJSON(cfg, database))
+	r.Post("/", MakeShortURLHandler(database))
+	r.Post("/api/shorten", MakeShortURLByJSON(database))
+	r.Post("/api/shorten/batch", MakeBatchURLByJSON(database))
 	r.Get("/api/user/urls", GetUserURLs(database))
 	r.Delete("/api/user/urls", DeleteAsync(deleteCh))
 
@@ -509,6 +593,7 @@ func MyHandler(cfg *models.Config, database *app.Database, deleteCh chan models.
 			log.Println(nfErr)
 		}
 	})
+
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, naErr := w.Write([]byte("sorry, only GET, POST and DELETE methods are supported."))

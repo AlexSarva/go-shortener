@@ -30,14 +30,14 @@ func NewFileStorage(fileName string) (*fileStorage, error) {
 }
 
 func (f *fileStorage) Ping() bool {
-	return false
+	return true
 }
 
-func (f *fileStorage) InsertURL(id, rawURL, baseURL, userID string) error {
+func (f *fileStorage) InsertURL(id, rawURL, shortURL, userID string) error {
 	URLData := models.URL{
 		ID:       id,
 		RawURL:   rawURL,
-		ShortURL: baseURL + "/" + id,
+		ShortURL: shortURL,
 		Created:  time.Now(),
 		UserID:   userID,
 	}

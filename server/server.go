@@ -1,6 +1,7 @@
 package server
 
 import (
+	"AlexSarva/go-shortener/constant"
 	"AlexSarva/go-shortener/handlers"
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/models"
@@ -12,13 +13,17 @@ import (
 	"time"
 )
 
+// MyServer implementation of custom server
 type MyServer struct {
 	httpServer *http.Server
 }
 
-func NewMyServer(cfg *models.Config, database *app.Database, deleteCh chan models.DeleteURL) *MyServer {
+// NewMyServer Initializing new server instance
+func NewMyServer(database *app.Database, deleteCh chan models.DeleteURL) *MyServer {
 
-	handler := handlers.MyHandler(cfg, database, deleteCh)
+	cfg := constant.GlobalContainer.Get("server-config").(models.Config)
+
+	handler := handlers.MyHandler(database, deleteCh)
 	server := http.Server{
 		Addr:    cfg.ServerAddress,
 		Handler: handler,
@@ -28,6 +33,7 @@ func NewMyServer(cfg *models.Config, database *app.Database, deleteCh chan model
 	}
 }
 
+// Run method that starts the server
 func (a *MyServer) Run() error {
 	addr := a.httpServer.Addr
 	log.Printf("Web-server started at http://%s", addr)

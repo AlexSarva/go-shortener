@@ -3,10 +3,11 @@ package storagepg
 import (
 	"AlexSarva/go-shortener/models"
 	"AlexSarva/go-shortener/storage"
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"log"
 	"time"
+
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 )
 
 type PostgresDB struct {
@@ -37,11 +38,11 @@ func (d *PostgresDB) Ping() bool {
 	return d.database.Ping() == nil
 }
 
-func (d *PostgresDB) InsertURL(id, rawURL, baseURL, userID string) error {
+func (d *PostgresDB) InsertURL(id, rawURL, shortURL, userID string) error {
 	URLData := &models.URL{
 		ID:       id,
 		RawURL:   rawURL,
-		ShortURL: baseURL + "/" + id,
+		ShortURL: shortURL,
 		Created:  time.Now(),
 		UserID:   userID,
 	}
