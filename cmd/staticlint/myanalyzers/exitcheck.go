@@ -29,23 +29,24 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				return true
 			}
 			if f.Name.Name == "main" {
-				for _, s := range f.Body.List {
-					expr, exprOk := s.(*ast.ExprStmt)
-					if !exprOk {
-						return true
-					}
-					call, callOk := expr.X.(*ast.CallExpr)
-					if !callOk {
-						return true
-					}
-					selector, selectorOk := call.Fun.(*ast.SelectorExpr)
-					if !selectorOk {
-						return true
-					}
-					i := selector.X.(*ast.Ident)
-					if i.Name == "os" && selector.Sel.Name == "Exit" {
-						pass.Reportf(selector.Pos(), "Exit method call")
-					}
+				return true
+			}
+			for _, s := range f.Body.List {
+				expr, exprOk := s.(*ast.ExprStmt)
+				if !exprOk {
+					return true
+				}
+				call, callOk := expr.X.(*ast.CallExpr)
+				if !callOk {
+					return true
+				}
+				selector, selectorOk := call.Fun.(*ast.SelectorExpr)
+				if !selectorOk {
+					return true
+				}
+				i := selector.X.(*ast.Ident)
+				if i.Name == "os" && selector.Sel.Name == "Exit" {
+					pass.Reportf(selector.Pos(), Doc)
 				}
 			}
 			return true
