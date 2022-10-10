@@ -16,6 +16,8 @@ var (
 	buildVersion = "N/A"
 	buildDate    = "N/A"
 	buildCommit  = "N/A"
+	cfg          models.Config
+	JSONConfig   models.JSONConfig
 )
 
 func version() {
@@ -34,30 +36,45 @@ func readChan(delCh chan models.DeleteURL, database *app.Database) {
 	}
 }
 
+func init() {
+	flag.StringVar(&cfg.ServerAddress, "a", "", "host:port to listen on")
+	flag.StringVar(&cfg.BaseURL, "b", "", "base host:port for short link")
+	flag.StringVar(&cfg.FileStorage, "f", "", "filepath of short links file storage")
+	flag.StringVar(&cfg.Database, "d", "", "database config")
+	flag.StringVar(&JSONConfig.DSN, "c", "", "JSON config")
+	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "enable HTTPS")
+}
+
 func main() {
 	version()
-	var cfg models.Config
+
 	// Приоритет будет у ФЛАГОВ
 	// Загружаем конфиг из переменных окружения
 	err := env.Parse(&cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage)
+	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v, EnableHTTPS: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage, cfg.EnableHTTPS)
+
 	// Перезаписываем из параметров запуска
-	flag.StringVar(&cfg.ServerAddress, "a", cfg.ServerAddress, "host:port to listen on")
-	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "base host:port for short link")
-	flag.StringVar(&cfg.FileStorage, "f", cfg.FileStorage, "filepath of short links file storage")
-	flag.StringVar(&cfg.Database, "d", cfg.Database, "database config")
-	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "enable HTTPS")
 	flag.Parse()
+
+	if cfg == (models.Config{}) {
+		if configFilename := JSONConfig.DSN; configFilename != "" {
+			JSONErr := models.ReadJSONConfig(&cfg, configFilename)
+			if JSONErr != nil {
+				log.Println(JSONErr)
+			}
+		}
+	}
+
+	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v, EnableHTTPS: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage, cfg.EnableHTTPS)
 
 	GlobalContainerErr := constant.BuildContainer(cfg)
 	if GlobalContainerErr != nil {
 		log.Println(GlobalContainerErr)
 	}
 
-	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v, EnableHTTPS: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage, cfg.EnableHTTPS)
 	DB := *app.NewStorage()
 	ping := DB.Repo.Ping()
 	log.Println(ping)
