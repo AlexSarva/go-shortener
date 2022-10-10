@@ -49,6 +49,7 @@ func main() {
 	flag.StringVar(&cfg.BaseURL, "b", cfg.BaseURL, "base host:port for short link")
 	flag.StringVar(&cfg.FileStorage, "f", cfg.FileStorage, "filepath of short links file storage")
 	flag.StringVar(&cfg.Database, "d", cfg.Database, "database config")
+	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "enable HTTPS")
 	flag.Parse()
 
 	GlobalContainerErr := constant.BuildContainer(cfg)
@@ -56,7 +57,7 @@ func main() {
 		log.Println(GlobalContainerErr)
 	}
 
-	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage)
+	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v, EnableHTTPS: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage, cfg.EnableHTTPS)
 	DB := *app.NewStorage()
 	ping := DB.Repo.Ping()
 	log.Println(ping)

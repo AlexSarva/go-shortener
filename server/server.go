@@ -36,12 +36,24 @@ func NewMyServer(database *app.Database, deleteCh chan models.DeleteURL) *MyServ
 // Run method that starts the server
 func (a *MyServer) Run() error {
 	addr := a.httpServer.Addr
-	log.Printf("Web-server started at http://%s", addr)
-	go func() {
-		if err := a.httpServer.ListenAndServe(); err != nil {
-			log.Fatalf("Failed to listen and serve: %+v", err)
-		}
-	}()
+
+	cfg := constant.GlobalContainer.Get("server-config").(models.Config)
+
+	if cfg.EnableHTTPS {
+		log.Printf("Web-server started at https://%s", addr)
+		go func() {
+			if err := a.httpServer.ListenAndServeTLS("./certs/server.crt", "./certs/server.key"); err != nil {
+				log.Fatalf("Failed to listen and serve TLS: %+v", err)
+			}
+		}()
+	} else {
+		log.Printf("Web-server started at http://%s", addr)
+		go func() {
+			if err := a.httpServer.ListenAndServe(); err != nil {
+				log.Fatalf("Failed to listen and serve: %+v", err)
+			}
+		}()
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, os.Interrupt)
