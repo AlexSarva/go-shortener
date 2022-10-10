@@ -1,25 +1,33 @@
 package utils
 
 import (
-	"log"
+	"fmt"
 	"math/rand"
 	"regexp"
-	"strconv"
 	"time"
 )
 
+// ValidateURL check original url by pattern
 func ValidateURL(rawText string) bool {
 	var re = regexp.MustCompile(`(\b(https?):\/\/)?[-A-Za-z0-9+&@#\/%?=~_|!:,.;]+\.[-A-Za-z0-9+&@#\/%=~_|]+`)
 	return re.Match([]byte(rawText))
 }
 
-func ValidateShortURL(rawText string) bool {
-	var re = regexp.MustCompile(`http:\/\/localhost:8080\/[a-zA-Z]{5}`)
+// CreateShortURL create short url by concat base url of the service and generated id
+func CreateShortURL(path, shortPath string) string {
+	return fmt.Sprintf("%s/%s", path, shortPath)
+}
+
+// ValidateShortURL check short url by pattern
+func ValidateShortURL(rawText, path string, n int) bool {
+	pattern := fmt.Sprintf("%s/[a-zA-Z]{%d}", path, n)
+	re := regexp.MustCompile(pattern)
 	return re.Match([]byte(rawText))
 }
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
+// ShortURLGenerator generate id of the short url with the specified number of characters
 func ShortURLGenerator(n int) string {
 	rand.Seed(time.Now().UnixNano())
 	b := make([]rune, n)
@@ -27,19 +35,4 @@ func ShortURLGenerator(n int) string {
 		b[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(b)
-}
-
-var digits = []rune("1234567890")
-
-func UserIDGenerator(n int) int {
-	rand.Seed(time.Now().UnixNano())
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = digits[rand.Intn(len(digits))]
-	}
-	res, err := strconv.Atoi(string(b))
-	if err != nil {
-		log.Println(err)
-	}
-	return res
 }

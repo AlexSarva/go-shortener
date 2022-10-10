@@ -5,14 +5,19 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"github.com/google/uuid"
 	"log"
+
+	"github.com/google/uuid"
 )
 
+// SecretKey - secret key of encrypt and decrypt
 var SecretKey = []byte("Ag@th@")
 
+// ErrNotValidSing - error that occurs when it is impossible to recover UserID
 var ErrNotValidSing = errors.New("sign is not valid")
 
+// Encrypt convert user uuid to hash
+// secret key should be the same for Encrypt and Decrypt
 func Encrypt(uuid uuid.UUID, secret []byte) string {
 	h := hmac.New(sha256.New, secret)
 	h.Write(uuid[:])
@@ -23,6 +28,7 @@ func Encrypt(uuid uuid.UUID, secret []byte) string {
 	return hex.EncodeToString(fullCookie)
 }
 
+// Decrypt convert user hash to uuid
 func Decrypt(cookie string, secret []byte) (uuid.UUID, error) {
 	var (
 		data []byte    // декодированное сообщение с подписью
@@ -34,7 +40,7 @@ func Decrypt(cookie string, secret []byte) (uuid.UUID, error) {
 	data, err = hex.DecodeString(cookie)
 	if err != nil {
 		log.Println(err)
-		return uuid.New(), ErrNotValidSing
+		return uuid.UUID{}, ErrNotValidSing
 	}
 	id, idErr := uuid.FromBytes(data[:16])
 	if idErr != nil {
@@ -47,6 +53,6 @@ func Decrypt(cookie string, secret []byte) (uuid.UUID, error) {
 	if hmac.Equal(sign, data[16:]) {
 		return id, nil
 	} else {
-		return uuid.New(), ErrNotValidSing
+		return uuid.UUID{}, ErrNotValidSing
 	}
 }

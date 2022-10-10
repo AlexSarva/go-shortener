@@ -3,20 +3,24 @@ package handlers_test
 import (
 	"AlexSarva/go-shortener/compressor"
 	"AlexSarva/go-shortener/compressor/compress"
+	"AlexSarva/go-shortener/constant"
 	"AlexSarva/go-shortener/handlers"
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/models"
 	"AlexSarva/go-shortener/utils"
 	"bytes"
 	"fmt"
-	"github.com/caarlos0/env/v6"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/stretchr/testify/assert"
 )
+
+const ShortLen int = 10
 
 type Compressor struct {
 	compressor compressor.Compressor
@@ -29,15 +33,20 @@ func NewCompressor(data []byte) *Compressor {
 	}
 }
 
-func TestMytHandler(t *testing.T) {
+func TestMyHandler(t *testing.T) {
 	var cfg models.Config
 	// Приоритет будет у ФЛАГОВ
 	// Загружаем конфиг из переменных окружения
 	err := env.Parse(&cfg)
+	GlobalContainerErr := constant.BuildContainer(cfg)
+	if GlobalContainerErr != nil {
+		log.Println(GlobalContainerErr)
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
-	database := app.NewStorage(cfg.FileStorage, cfg.Database)
+	log.Printf("%+v\n", cfg)
+	database := app.NewStorage()
 	CurCompressor := NewCompressor([]byte(`{"url":"https://codepen.io"}`))
 	compressData := CurCompressor.compressor.Compress()
 	insErr := database.Repo.InsertURL("Hasfe", "https://codepen.io", cfg.BaseURL, "ff2d2c4c-7bf7-49a7-a468-9c6d32aff40a")
@@ -45,12 +54,12 @@ func TestMytHandler(t *testing.T) {
 		log.Println(insErr)
 	}
 	type want struct {
-		code            int
 		location        string
 		contentType     string
 		contentEncoding string
-		responseFormat  bool
 		response        string
+		code            int
+		responseFormat  bool
 	}
 
 	tests := []struct {
@@ -70,7 +79,7 @@ func TestMytHandler(t *testing.T) {
 			requestMethod: http.MethodGet,
 			requestPath:   "/ping",
 			want: want{
-				code: http.StatusInternalServerError,
+				code: http.StatusOK,
 			},
 		},
 		{
@@ -369,7 +378,7 @@ func TestMytHandler(t *testing.T) {
 		},
 	}
 	delCh := make(chan models.DeleteURL)
-	Handler := *handlers.MyHandler(&cfg, database, delCh)
+	Handler := *handlers.MyHandler(database, delCh)
 	ts := httptest.NewServer(&Handler)
 	defer ts.Close()
 
@@ -417,7 +426,7 @@ func TestMytHandler(t *testing.T) {
 				t.Fatal(err)
 			}
 			fmt.Println(string(resBodyTmp))
-			resBody := utils.ValidateShortURL(string(resBodyTmp))
+			resBody := utils.ValidateShortURL(string(resBodyTmp), cfg.BaseURL, ShortLen)
 			wantBody := tt.want.responseFormat
 			assert.Equal(t, resContentType, wantContentType, fmt.Errorf("expected BodyCheck %v, got %v", wantBody, resBody))
 

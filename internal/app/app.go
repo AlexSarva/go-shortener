@@ -1,6 +1,8 @@
 package app
 
 import (
+	"AlexSarva/go-shortener/constant"
+	"AlexSarva/go-shortener/models"
 	"AlexSarva/go-shortener/storage"
 	"AlexSarva/go-shortener/storage/storagefile"
 	"AlexSarva/go-shortener/storage/storagelocal"
@@ -9,26 +11,31 @@ import (
 	"log"
 )
 
+// Database interface for different types of databases
 type Database struct {
 	Repo storage.Repo
 }
 
-func NewStorage(filePath, database string) *Database {
-	if filePath == "" && database == "" {
+// NewStorage generate new instance of database
+func NewStorage() *Database {
+
+	cfg := constant.GlobalContainer.Get("server-config").(models.Config)
+
+	if cfg.FileStorage == "" && cfg.Database == "" {
 		Storage := storagelocal.NewURLLocalStorage()
 		fmt.Println("Using In-Memory Database")
 		return &Database{
 			Repo: Storage,
 		}
-	} else if len(database) > 0 {
-		Storage := storagepg.NewPostgresDBConnection(database)
+	} else if len(cfg.Database) > 0 {
+		Storage := storagepg.NewPostgresDBConnection(cfg.Database)
 		fmt.Println("Using PostgreSQL Database")
 		return &Database{
 			Repo: Storage,
 		}
 	} else {
 		fmt.Println("Using file Database")
-		Storage, err := storagefile.NewFileStorage(filePath)
+		Storage, err := storagefile.NewFileStorage(cfg.FileStorage)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -14,8 +14,8 @@ var ErrURLNotFound = errors.New("URL not found")
 var ErrUserURLsNotFound = errors.New("no URLs found by such userID")
 
 type fileStorage struct {
-	file   string
 	writer *bufio.Writer
+	file   string
 }
 
 func NewFileStorage(fileName string) (*fileStorage, error) {
@@ -30,14 +30,14 @@ func NewFileStorage(fileName string) (*fileStorage, error) {
 }
 
 func (f *fileStorage) Ping() bool {
-	return false
+	return true
 }
 
-func (f *fileStorage) InsertURL(id, rawURL, baseURL, userID string) error {
+func (f *fileStorage) InsertURL(id, rawURL, shortURL, userID string) error {
 	URLData := models.URL{
 		ID:       id,
 		RawURL:   rawURL,
-		ShortURL: baseURL + "/" + id,
+		ShortURL: shortURL,
 		Created:  time.Now(),
 		UserID:   userID,
 	}

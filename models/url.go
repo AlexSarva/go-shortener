@@ -1,16 +1,15 @@
 package models
 
-import (
-	"time"
-)
+import "time"
 
+// URL base struct for URLs in DB
 type URL struct {
+	Created  time.Time `json:"created,omitempty" db:"created"`
 	ID       string    `json:"id" db:"id"`
 	ShortURL string    `json:"short_url" db:"short_url"`
 	RawURL   string    `json:"raw_url" db:"raw_url"`
 	UserID   string    `json:"user_id" db:"user_id"`
 	Deleted  int       `json:"deleted" db:"deleted"`
-	Created  time.Time `json:"created,omitempty" db:"created"`
 }
 
 type RawBatchURL struct {
@@ -43,22 +42,4 @@ type AllUserURLs struct {
 type DeleteURL struct {
 	UserID string
 	URLs   []string
-}
-
-type Queue struct {
-	ch chan *DeleteURL
-}
-
-func NewQueue() *Queue {
-	return &Queue{
-		ch: make(chan *DeleteURL),
-	}
-}
-
-func (q *Queue) Push(t *DeleteURL) {
-	q.ch <- t
-}
-
-func (q *Queue) PopWait() *DeleteURL {
-	return <-q.ch
 }
