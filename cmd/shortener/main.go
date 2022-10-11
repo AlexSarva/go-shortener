@@ -59,15 +59,13 @@ func main() {
 	// Перезаписываем из параметров запуска
 	flag.Parse()
 
-	if cfg == (models.Config{}) {
+	if cfg.Database == "" && cfg.FileStorage == "" && cfg.EnableHTTPS == false {
 		if configFilename := JSONConfig.DSN; configFilename != "" {
 			JSONErr := models.ReadJSONConfig(&cfg, configFilename)
 			if JSONErr != nil {
 				log.Println(JSONErr)
 			}
 		}
-		cfg.BaseURL = "http://localhost:8080"
-		cfg.ServerAddress = "localhost:8080"
 	}
 
 	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v, EnableHTTPS: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage, cfg.EnableHTTPS)
