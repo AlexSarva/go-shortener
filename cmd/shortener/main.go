@@ -59,7 +59,7 @@ func main() {
 	// Перезаписываем из параметров запуска
 	flag.Parse()
 
-	if cfg.Database == "" && cfg.FileStorage == "" && cfg.EnableHTTPS == false {
+	if cfg.Database == "" && cfg.FileStorage == "" && !cfg.EnableHTTPS {
 		if configFilename := JSONConfig.DSN; configFilename != "" {
 			JSONErr := models.ReadJSONConfig(&cfg, configFilename)
 			if JSONErr != nil {
