@@ -66,6 +66,8 @@ func main() {
 				log.Println(JSONErr)
 			}
 		}
+		cfg.BaseURL = "http://localhost:8080"
+		cfg.ServerAddress = "localhost:8080"
 	}
 
 	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v, EnableHTTPS: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage, cfg.EnableHTTPS)
