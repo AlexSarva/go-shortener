@@ -23,6 +23,7 @@ type JSONConfig struct {
 
 func ReadJSONConfig(cfg *Config, JSONFilepath string) error {
 	f, fErr := os.Open(JSONFilepath)
+	log.Println("Открываем файл")
 	if fErr != nil {
 		log.Println("error opening file: err:", fErr)
 	}
@@ -36,7 +37,8 @@ func ReadJSONConfig(cfg *Config, JSONFilepath string) error {
 
 	if err != nil {
 		if errors.As(err, &unmarshalConfigErr) {
-			log.Println("Wrong json format ")
+			return err
+		} else {
 			return err
 		}
 	}

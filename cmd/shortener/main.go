@@ -63,7 +63,8 @@ func main() {
 		if configFilename := JSONConfig.DSN; configFilename != "" {
 			JSONErr := models.ReadJSONConfig(&cfg, configFilename)
 			if JSONErr != nil {
-				log.Println(JSONErr)
+				log.Fatalf("Wrong json format: %+v", JSONErr)
+				//log.Println(JSONErr)
 			}
 		}
 	}
