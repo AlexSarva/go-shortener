@@ -2,6 +2,7 @@ package storagefile
 
 import (
 	"AlexSarva/go-shortener/models"
+	"AlexSarva/go-shortener/utils"
 	"bufio"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 
 var ErrURLNotFound = errors.New("URL not found")
 var ErrUserURLsNotFound = errors.New("no URLs found by such userID")
+var ErrEmptyData = errors.New("no data in file")
 
 type fileStorage struct {
 	writer *bufio.Writer
@@ -155,4 +157,32 @@ func (f *fileStorage) GetUserURLs(userID string) ([]models.UserURL, error) {
 
 func (f *fileStorage) Delete(userID string, shortURLs []string) error {
 	return nil
+}
+
+func (f *fileStorage) GetStat() (*models.SystemStat, error) {
+	var stat models.SystemStat
+	file, err := os.OpenFile(f.file, os.O_RDONLY|os.O_CREATE, 0777)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	scanner := *bufio.NewScanner(file)
+	var usersList []string
+	for scanner.Scan() {
+		var URLInfo models.URL
+		// читаем данные из scanner
+		data := scanner.Bytes()
+		if err := json.Unmarshal(data, &URLInfo); err != nil {
+			panic(err)
+		}
+		usersList = append(usersList, URLInfo.UserID)
+	}
+	stat.URLsCnt = len(usersList)
+	stat.UsersCnt = len(utils.UniqueElements(usersList))
+
+	if (models.SystemStat{}) == stat {
+		return nil, ErrEmptyData
+	}
+
+	return &stat, nil
 }

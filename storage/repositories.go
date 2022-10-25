@@ -23,4 +23,6 @@ type Repo interface {
 	GetURLByRaw(rawURL string) (*models.URL, error)
 	// Delete delete url from DB
 	Delete(userID string, urls []string) error
+	// GetStat get stata of users cnt ans urls cnt
+	GetStat() (*models.SystemStat, error)
 }

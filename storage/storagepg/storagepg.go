@@ -113,3 +113,16 @@ func (d *PostgresDB) Delete(userID string, shortURLs []string) error {
 	}
 	return nil
 }
+
+func (d *PostgresDB) GetStat() (*models.SystemStat, error) {
+	var stat models.SystemStat
+	err := d.database.Get(&stat, `
+select count(distinct user_id) users_cnt,
+       count(*) urls_cnt
+from public.urls;
+`)
+	if err != nil {
+		log.Println(err)
+	}
+	return &stat, err
+}

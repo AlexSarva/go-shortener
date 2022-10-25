@@ -521,6 +521,44 @@ func DeleteAsync(deleteCh chan models.DeleteURL) http.HandlerFunc {
 	}
 }
 
+// GetStata return count of links and users
+//
+// Handler: GET /api/internal/stats
+//
+// Respond format:
+//
+//	{
+//	"urls": <int>, // количество сокращённых URL в сервисе
+//	"users": <int> // количество пользователей в сервисе
+//	}
+//
+// Possible response codes:
+// 200 - status OK;
+// 204 - no content;
+// 403 - Forbidden
+func GetStata(database *app.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		res, er := database.Repo.GetStat()
+		if er != nil {
+			ErrorResponse(w, er.Error(), "application/json", http.StatusNoContent)
+			return
+		}
+
+		result, resultErr := json.Marshal(res)
+		if resultErr != nil {
+			panic(resultErr)
+		}
+		_, err := w.Write(result)
+		if err != nil {
+			log.Println("Something wrong", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+
+}
+
 // gzipWriter struct to write response in compressed form
 type gzipWriter struct {
 	http.ResponseWriter
@@ -584,6 +622,7 @@ func MyHandler(database *app.Database, deleteCh chan models.DeleteURL) *chi.Mux 
 	r.Post("/api/shorten/batch", MakeBatchURLByJSON(database))
 	r.Get("/api/user/urls", GetUserURLs(database))
 	r.Delete("/api/user/urls", DeleteAsync(deleteCh))
+	r.Get("/api/internal/stats", GetStata(database))
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
