@@ -14,6 +14,7 @@ type Config struct {
 	FileStorage   string `env:"FILE_STORAGE_PATH" json:"file_storage_path"`
 	Database      string `env:"DATABASE_DSN" json:"database_dsn"`
 	EnableHTTPS   bool   `env:"ENABLE_HTTPS" json:"enable_https"`
+	TrustedSubnet string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
 }
 
 // JSONConfig config file in json format

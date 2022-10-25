@@ -13,6 +13,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -539,6 +540,26 @@ func DeleteAsync(deleteCh chan models.DeleteURL) http.HandlerFunc {
 func GetStata(database *app.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		ip, ipErr := utils.ResolveIP(r)
+		if ipErr != nil {
+			log.Println(ipErr)
+		}
+		log.Println("IP: ", ip)
+
+		cfg := constant.GlobalContainer.Get("server-config").(models.Config)
+		if cfg.TrustedSubnet != "" {
+			_, ipNet, cidrErr := net.ParseCIDR(cfg.TrustedSubnet)
+
+			if cidrErr != nil {
+				ErrorResponse(w, cidrErr.Error(), "application/json", http.StatusForbidden)
+				return
+			}
+
+			if !ipNet.Contains(ip) {
+				ErrorResponse(w, "client IP address is not in a trusted subnet", "application/json", http.StatusForbidden)
+				return
+			}
+		}
 
 		res, er := database.Repo.GetStat()
 		if er != nil {
