@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package demo;
+
+option go_package = "go-shortener/proto";
+
+message BaseURL {
+  string url = 1;
+  string user_id = 2;
+}
+
+message BaseURLRequest {
+  BaseURL base_url = 1;
+}
+
+message BaseURLResponse {
+  string url = 1;
+}
+
+message GetRedirectURLRequest {
+  string url = 1;
+}
+
+message GetRedirectURLResponse {
+  string url = 1;
+}
+
+service Shortener {
+  rpc GetShortURL(BaseURLRequest) returns (BaseURLResponse);
+  rpc GetBaseURL(GetRedirectURLRequest) returns (GetRedirectURLResponse);
+}

@@ -112,10 +112,16 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 			w.WriteHeader(http.StatusGone)
 			return
 		}
-		longURL := res.RawURL
+		var longURL string
 		w.Header().Set("Content-Type", "text/plain")
+		if strings.HasPrefix(res.RawURL, "http") {
+			longURL = res.RawURL
+		} else {
+			longURL = "http://" + res.RawURL
+		}
 		w.Header().Add("Location", longURL)
 		w.WriteHeader(http.StatusTemporaryRedirect)
+		log.Printf("HEADERS: %+v\n", w.Header())
 
 		_, err := w.Write([]byte(longURL))
 		if err != nil {
