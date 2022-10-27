@@ -125,7 +125,8 @@ func (s *ShortenerServer) Ping(ctx context.Context, in *pb.PingRequest) (*pb.Pin
 func (s *ShortenerServer) GetAllURLs(ctx context.Context, in *pb.AllURLsRequest) (*pb.AllURLsResponse, error) {
 	var response pb.AllURLsResponse
 	var responseURLs []*pb.UserURL
-	userID := uuid.NewString()
+	var userID string
+	userID = uuid.NewString()
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
@@ -146,7 +147,7 @@ func (s *ShortenerServer) GetAllURLs(ctx context.Context, in *pb.AllURLsRequest)
 		log.Printf("Ищем urls для пользователя %s", userID)
 		res, er := s.Database.Repo.GetUserURLs(userID)
 		if er != nil {
-			if errors.As(storage.ErrNoValues, &er) {
+			if errors.As(er, &storage.ErrNoValues) {
 				return nil, status.Errorf(codes.NotFound,
 					"no data found in DB")
 			}
@@ -175,8 +176,9 @@ func (s *ShortenerServer) Batch(ctx context.Context, in *pb.CorrelationRequest) 
 	var response pb.CorrelationResponse
 	var responseURLs []*pb.ShortUrlElement
 	var insertBatchURL []models.URL
+	var userID string
+	userID = uuid.NewString()
 	cfg := constant.GlobalContainer.Get("server-config").(models.Config)
-	userID := uuid.NewString()
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
@@ -233,7 +235,8 @@ func (s *ShortenerServer) Batch(ctx context.Context, in *pb.CorrelationRequest) 
 func (s *ShortenerServer) Delete(ctx context.Context, in *pb.DeleteRequest) (*pb.DeleteResponse, error) {
 	var response pb.DeleteResponse
 	var deleteBatchURL []string
-	userID := uuid.NewString()
+	var userID string
+	userID = uuid.NewString()
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
