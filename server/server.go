@@ -43,6 +43,7 @@ func NewMyServer(database *app.Database, deleteCh chan models.DeleteURL) *MyServ
 
 	pb.RegisterShortenerServer(serviceRPC, &grpcserver.ShortenerServer{
 		Database: database,
+		DelChan:  deleteCh,
 	})
 
 	return &MyServer{

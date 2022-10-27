@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"AlexSarva/go-shortener/models"
 	"fmt"
 	"math/rand"
 	"net"
@@ -87,4 +88,9 @@ func ResolveIP(r *http.Request) (net.IP, error) {
 
 	return ip, nil
 
+}
+
+// AddDeleteURLs async delete url from DB using channels
+func AddDeleteURLs(urls models.DeleteURL, deleteCh chan models.DeleteURL) {
+	deleteCh <- urls
 }

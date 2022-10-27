@@ -465,11 +465,6 @@ func MakeBatchURLByJSON(database *app.Database) http.HandlerFunc {
 	}
 }
 
-// AddDeleteURLs async delete url from DB using channels
-func AddDeleteURLs(urls models.DeleteURL, deleteCh chan models.DeleteURL) {
-	deleteCh <- urls
-}
-
 // DeleteAsync accept in the request body a set of URLs to shorten in the format
 //
 // Handler: DELETE /api/user/urls
@@ -516,7 +511,7 @@ func DeleteAsync(deleteCh chan models.DeleteURL) http.HandlerFunc {
 		cookie, _ := r.Cookie("session")
 		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
 
-		go AddDeleteURLs(models.DeleteURL{
+		go utils.AddDeleteURLs(models.DeleteURL{
 			UserID: userID.String(),
 			URLs:   deleteBatchURL,
 		}, deleteCh)
