@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func main() {
@@ -69,9 +70,7 @@ func TestUsers(c pb.ShortenerClient) {
 		}
 	}
 	log.Println("\nTEST: Ping")
-	resp, err := c.Ping(ctx, &pb.PingRequest{
-		Check: true,
-	})
+	resp, err := c.Ping(ctx, &emptypb.Empty{})
 	if err != nil {
 		log.Println("Ошибка: ", err)
 	} else {
@@ -79,9 +78,7 @@ func TestUsers(c pb.ShortenerClient) {
 	}
 
 	log.Println("\nTEST: GetAllURLs")
-	resp2, err2 := c.GetAllURLs(ctx, &pb.AllURLsRequest{
-		Check: true,
-	})
+	resp2, err2 := c.GetAllURLs(ctx, &emptypb.Empty{})
 	if err2 != nil {
 		log.Println("Ошибка: ", err2)
 	} else {
@@ -125,9 +122,7 @@ func TestUsers(c pb.ShortenerClient) {
 	}
 
 	log.Println("\nTEST: STATA")
-	resp5, err5 := c.Stata(ctx, &pb.StataRequest{
-		Check: true,
-	})
+	resp5, err5 := c.Stata(ctx, &emptypb.Empty{})
 	if err5 != nil {
 		log.Println("Ошибка: ", err5)
 	} else {

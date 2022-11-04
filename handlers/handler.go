@@ -548,14 +548,8 @@ func GetStata(database *app.Database) http.HandlerFunc {
 		log.Println("IP: ", ip)
 
 		cfg := constant.GlobalContainer.Get("server-config").(models.Config)
+		ipNet := constant.GlobalContainer.Get("ip-net").(net.IPNet)
 		if cfg.TrustedSubnet != "" {
-			_, ipNet, cidrErr := net.ParseCIDR(cfg.TrustedSubnet)
-
-			if cidrErr != nil {
-				ErrorResponse(w, cidrErr.Error(), "application/json", http.StatusForbidden)
-				return
-			}
-
 			if !ipNet.Contains(ip) {
 				ErrorResponse(w, "client IP address is not in a trusted subnet", "application/json", http.StatusForbidden)
 				return
@@ -564,7 +558,7 @@ func GetStata(database *app.Database) http.HandlerFunc {
 
 		res, er := database.Repo.GetStat()
 		if er != nil {
-			ErrorResponse(w, er.Error(), "application/json", http.StatusNoContent)
+			ErrorResponse(w, er.Error(), "application/json", http.StatusInternalServerError)
 			return
 		}
 

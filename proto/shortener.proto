@@ -4,6 +4,8 @@ package demo;
 
 option go_package = "go-shortener/proto";
 
+import "google/protobuf/empty.proto";
+
 message OriginalURL {
   string url = 1;
 }
@@ -28,16 +30,8 @@ message OriginalURLResponse {
   OriginalURL original_url = 1;
 }
 
-message PingRequest {
-  bool check = 1;
-}
-
 message PingResponse {
   bool status = 1;
-}
-
-message AllURLsRequest {
-  bool check = 1;
 }
 
 message UserURL {
@@ -75,10 +69,6 @@ message DeleteResponse {
   bool status = 1;
 }
 
-message StataRequest {
-  bool check = 1;
-}
-
 message Stata {
   int32 urls_cnt = 1;
   int32 users_cnt = 2;
@@ -91,9 +81,9 @@ message StataResponse {
 service Shortener {
   rpc GetShortURL(ShortURLRequest) returns (ShortURLResponse);
   rpc GetOriginalURL(OriginalURLRequest) returns (OriginalURLResponse);
-  rpc Ping(PingRequest) returns (PingResponse);
-  rpc GetAllURLs(AllURLsRequest) returns (AllURLsResponse);
+  rpc Ping(google.protobuf.Empty) returns (PingResponse);
+  rpc GetAllURLs(google.protobuf.Empty) returns (AllURLsResponse);
   rpc Batch(CorrelationRequest) returns (CorrelationResponse);
   rpc Delete(DeleteRequest) returns (DeleteResponse);
-  rpc Stata(StataRequest) returns (StataResponse);
+  rpc Stata(google.protobuf.Empty) returns (StataResponse);
 }

@@ -2,6 +2,8 @@ package utils
 
 import (
 	"AlexSarva/go-shortener/models"
+	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -9,7 +11,11 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"google.golang.org/grpc/metadata"
 )
+
+var ErrNoUserID = errors.New("no userID exists")
 
 // ValidateURL check original url by pattern
 func ValidateURL(rawText string) bool {
@@ -45,7 +51,7 @@ func UniqueElements(s []string) []string {
 	inResult := make(map[string]bool)
 	var result []string
 	for _, str := range s {
-		if _, ok := inResult[str]; !ok {
+		if !inResult[str] {
 			inResult[str] = true
 			result = append(result, str)
 		}
@@ -93,4 +99,22 @@ func ResolveIP(r *http.Request) (net.IP, error) {
 // AddDeleteURLs async delete url from DB using channels
 func AddDeleteURLs(urls models.DeleteURL, deleteCh chan models.DeleteURL) {
 	deleteCh <- urls
+}
+
+func GetUserID(ctx context.Context) (string, error) {
+	var userID string
+
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		values := md.Get("user_id")
+		if len(values) > 0 {
+			// ключ содержит слайс строк, получаем первую строку
+			userID = values[0]
+		}
+	}
+
+	if userID == "" {
+		return "", ErrNoUserID
+	}
+
+	return userID, nil
 }

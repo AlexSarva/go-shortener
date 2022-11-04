@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -24,11 +25,11 @@ const _ = grpc.SupportPackageIsVersion7
 type ShortenerClient interface {
 	GetShortURL(ctx context.Context, in *ShortURLRequest, opts ...grpc.CallOption) (*ShortURLResponse, error)
 	GetOriginalURL(ctx context.Context, in *OriginalURLRequest, opts ...grpc.CallOption) (*OriginalURLResponse, error)
-	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
-	GetAllURLs(ctx context.Context, in *AllURLsRequest, opts ...grpc.CallOption) (*AllURLsResponse, error)
+	Ping(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*PingResponse, error)
+	GetAllURLs(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*AllURLsResponse, error)
 	Batch(ctx context.Context, in *CorrelationRequest, opts ...grpc.CallOption) (*CorrelationResponse, error)
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
-	Stata(ctx context.Context, in *StataRequest, opts ...grpc.CallOption) (*StataResponse, error)
+	Stata(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*StataResponse, error)
 }
 
 type shortenerClient struct {
@@ -57,7 +58,7 @@ func (c *shortenerClient) GetOriginalURL(ctx context.Context, in *OriginalURLReq
 	return out, nil
 }
 
-func (c *shortenerClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
+func (c *shortenerClient) Ping(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*PingResponse, error) {
 	out := new(PingResponse)
 	err := c.cc.Invoke(ctx, "/demo.Shortener/Ping", in, out, opts...)
 	if err != nil {
@@ -66,7 +67,7 @@ func (c *shortenerClient) Ping(ctx context.Context, in *PingRequest, opts ...grp
 	return out, nil
 }
 
-func (c *shortenerClient) GetAllURLs(ctx context.Context, in *AllURLsRequest, opts ...grpc.CallOption) (*AllURLsResponse, error) {
+func (c *shortenerClient) GetAllURLs(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*AllURLsResponse, error) {
 	out := new(AllURLsResponse)
 	err := c.cc.Invoke(ctx, "/demo.Shortener/GetAllURLs", in, out, opts...)
 	if err != nil {
@@ -93,7 +94,7 @@ func (c *shortenerClient) Delete(ctx context.Context, in *DeleteRequest, opts ..
 	return out, nil
 }
 
-func (c *shortenerClient) Stata(ctx context.Context, in *StataRequest, opts ...grpc.CallOption) (*StataResponse, error) {
+func (c *shortenerClient) Stata(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*StataResponse, error) {
 	out := new(StataResponse)
 	err := c.cc.Invoke(ctx, "/demo.Shortener/Stata", in, out, opts...)
 	if err != nil {
@@ -108,11 +109,11 @@ func (c *shortenerClient) Stata(ctx context.Context, in *StataRequest, opts ...g
 type ShortenerServer interface {
 	GetShortURL(context.Context, *ShortURLRequest) (*ShortURLResponse, error)
 	GetOriginalURL(context.Context, *OriginalURLRequest) (*OriginalURLResponse, error)
-	Ping(context.Context, *PingRequest) (*PingResponse, error)
-	GetAllURLs(context.Context, *AllURLsRequest) (*AllURLsResponse, error)
+	Ping(context.Context, *emptypb.Empty) (*PingResponse, error)
+	GetAllURLs(context.Context, *emptypb.Empty) (*AllURLsResponse, error)
 	Batch(context.Context, *CorrelationRequest) (*CorrelationResponse, error)
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
-	Stata(context.Context, *StataRequest) (*StataResponse, error)
+	Stata(context.Context, *emptypb.Empty) (*StataResponse, error)
 	mustEmbedUnimplementedShortenerServer()
 }
 
@@ -126,10 +127,10 @@ func (UnimplementedShortenerServer) GetShortURL(context.Context, *ShortURLReques
 func (UnimplementedShortenerServer) GetOriginalURL(context.Context, *OriginalURLRequest) (*OriginalURLResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOriginalURL not implemented")
 }
-func (UnimplementedShortenerServer) Ping(context.Context, *PingRequest) (*PingResponse, error) {
+func (UnimplementedShortenerServer) Ping(context.Context, *emptypb.Empty) (*PingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
 }
-func (UnimplementedShortenerServer) GetAllURLs(context.Context, *AllURLsRequest) (*AllURLsResponse, error) {
+func (UnimplementedShortenerServer) GetAllURLs(context.Context, *emptypb.Empty) (*AllURLsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllURLs not implemented")
 }
 func (UnimplementedShortenerServer) Batch(context.Context, *CorrelationRequest) (*CorrelationResponse, error) {
@@ -138,7 +139,7 @@ func (UnimplementedShortenerServer) Batch(context.Context, *CorrelationRequest) 
 func (UnimplementedShortenerServer) Delete(context.Context, *DeleteRequest) (*DeleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
-func (UnimplementedShortenerServer) Stata(context.Context, *StataRequest) (*StataResponse, error) {
+func (UnimplementedShortenerServer) Stata(context.Context, *emptypb.Empty) (*StataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Stata not implemented")
 }
 func (UnimplementedShortenerServer) mustEmbedUnimplementedShortenerServer() {}
@@ -191,7 +192,7 @@ func _Shortener_GetOriginalURL_Handler(srv interface{}, ctx context.Context, dec
 }
 
 func _Shortener_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PingRequest)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -203,13 +204,13 @@ func _Shortener_Ping_Handler(srv interface{}, ctx context.Context, dec func(inte
 		FullMethod: "/demo.Shortener/Ping",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ShortenerServer).Ping(ctx, req.(*PingRequest))
+		return srv.(ShortenerServer).Ping(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Shortener_GetAllURLs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AllURLsRequest)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -221,7 +222,7 @@ func _Shortener_GetAllURLs_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: "/demo.Shortener/GetAllURLs",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ShortenerServer).GetAllURLs(ctx, req.(*AllURLsRequest))
+		return srv.(ShortenerServer).GetAllURLs(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -263,7 +264,7 @@ func _Shortener_Delete_Handler(srv interface{}, ctx context.Context, dec func(in
 }
 
 func _Shortener_Stata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StataRequest)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -275,7 +276,7 @@ func _Shortener_Stata_Handler(srv interface{}, ctx context.Context, dec func(int
 		FullMethod: "/demo.Shortener/Stata",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ShortenerServer).Stata(ctx, req.(*StataRequest))
+		return srv.(ShortenerServer).Stata(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
