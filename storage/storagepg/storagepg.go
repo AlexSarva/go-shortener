@@ -94,10 +94,14 @@ func (d *PostgresDB) GetUserURLs(userID string) ([]models.UserURL, error) {
 	var allURLs []models.UserURL
 	log.Println(userID)
 	err := d.database.Select(&allURLs, "SELECT short_url, raw_url FROM public.urls where user_id=$1", userID)
+	if len(allURLs) == 0 {
+		return nil, storage.ErrNoValues
+	}
 	if err != nil {
 		log.Println(err)
+		return nil, err
 	}
-	return allURLs, err
+	return allURLs, nil
 }
 
 func (d *PostgresDB) Delete(userID string, shortURLs []string) error {
@@ -112,4 +116,17 @@ func (d *PostgresDB) Delete(userID string, shortURLs []string) error {
 		return execErr
 	}
 	return nil
+}
+
+func (d *PostgresDB) GetStat() (*models.SystemStat, error) {
+	var stat models.SystemStat
+	err := d.database.Get(&stat, `
+select count(distinct user_id) users_cnt,
+       count(*) urls_cnt
+from public.urls;
+`)
+	if err != nil {
+		log.Println(err)
+	}
+	return &stat, err
 }

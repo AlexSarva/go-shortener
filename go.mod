@@ -12,5 +12,7 @@ require (
 	github.com/sarulabs/di v2.0.0+incompatible // indirect
 	github.com/stretchr/testify v1.7.1 // indirect
 	golang.org/x/tools v0.1.12 // indirect
+	google.golang.org/grpc v1.50.1 // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 	honnef.co/go/tools v0.3.3 // indirect
 )

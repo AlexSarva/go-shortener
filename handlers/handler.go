@@ -13,6 +13,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -111,10 +112,16 @@ func GetRedirectURL(database *app.Database) http.HandlerFunc {
 			w.WriteHeader(http.StatusGone)
 			return
 		}
-		longURL := res.RawURL
+		var longURL string
 		w.Header().Set("Content-Type", "text/plain")
+		if strings.HasPrefix(res.RawURL, "http") {
+			longURL = res.RawURL
+		} else {
+			longURL = "http://" + res.RawURL
+		}
 		w.Header().Add("Location", longURL)
 		w.WriteHeader(http.StatusTemporaryRedirect)
+		log.Printf("HEADERS: %+v\n", w.Header())
 
 		_, err := w.Write([]byte(longURL))
 		if err != nil {
@@ -458,11 +465,6 @@ func MakeBatchURLByJSON(database *app.Database) http.HandlerFunc {
 	}
 }
 
-// AddDeleteURLs async delete url from DB using channels
-func AddDeleteURLs(urls models.DeleteURL, deleteCh chan models.DeleteURL) {
-	deleteCh <- urls
-}
-
 // DeleteAsync accept in the request body a set of URLs to shorten in the format
 //
 // Handler: DELETE /api/user/urls
@@ -509,7 +511,7 @@ func DeleteAsync(deleteCh chan models.DeleteURL) http.HandlerFunc {
 		cookie, _ := r.Cookie("session")
 		userID, _ := crypto.Decrypt(cookie.Value, crypto.SecretKey)
 
-		go AddDeleteURLs(models.DeleteURL{
+		go utils.AddDeleteURLs(models.DeleteURL{
 			UserID: userID.String(),
 			URLs:   deleteBatchURL,
 		}, deleteCh)
@@ -519,6 +521,58 @@ func DeleteAsync(deleteCh chan models.DeleteURL) http.HandlerFunc {
 
 		log.Printf("%+v\n", deleteBatchURL)
 	}
+}
+
+// GetStata return count of links and users
+//
+// Handler: GET /api/internal/stats
+//
+// Respond format:
+//
+//	{
+//	"urls": <int>, // количество сокращённых URL в сервисе
+//	"users": <int> // количество пользователей в сервисе
+//	}
+//
+// Possible response codes:
+// 200 - status OK;
+// 204 - no content;
+// 403 - Forbidden
+func GetStata(database *app.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		ip, ipErr := utils.ResolveIP(r)
+		if ipErr != nil {
+			log.Println(ipErr)
+		}
+		log.Println("IP: ", ip)
+
+		cfg := constant.GlobalContainer.Get("server-config").(models.Config)
+		ipNet := constant.GlobalContainer.Get("ip-net").(net.IPNet)
+		if cfg.TrustedSubnet != "" {
+			if !ipNet.Contains(ip) {
+				ErrorResponse(w, "client IP address is not in a trusted subnet", "application/json", http.StatusForbidden)
+				return
+			}
+		}
+
+		res, er := database.Repo.GetStat()
+		if er != nil {
+			ErrorResponse(w, er.Error(), "application/json", http.StatusInternalServerError)
+			return
+		}
+
+		result, resultErr := json.Marshal(res)
+		if resultErr != nil {
+			panic(resultErr)
+		}
+		_, err := w.Write(result)
+		if err != nil {
+			log.Println("Something wrong", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+
 }
 
 // gzipWriter struct to write response in compressed form
@@ -584,6 +638,7 @@ func MyHandler(database *app.Database, deleteCh chan models.DeleteURL) *chi.Mux 
 	r.Post("/api/shorten/batch", MakeBatchURLByJSON(database))
 	r.Get("/api/user/urls", GetUserURLs(database))
 	r.Delete("/api/user/urls", DeleteAsync(deleteCh))
+	r.Get("/api/internal/stats", GetStata(database))
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)

@@ -43,6 +43,7 @@ func init() {
 	flag.StringVar(&cfg.Database, "d", "", "database config")
 	flag.StringVar(&JSONConfig.DSN, "c", "", "JSON config")
 	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "enable HTTPS")
+	flag.StringVar(&cfg.TrustedSubnet, "t", "", "trusted subnet")
 }
 
 func main() {
@@ -54,17 +55,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v, EnableHTTPS: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage, cfg.EnableHTTPS)
+	log.Printf("ServerAddress: %v, BaseURL: %v, FileStorage: %v, EnableHTTPS: %v, TrustedSubnet: %v", cfg.ServerAddress, cfg.BaseURL, cfg.FileStorage, cfg.EnableHTTPS, cfg.TrustedSubnet)
 
 	// Перезаписываем из параметров запуска
 	flag.Parse()
 
-	if cfg.Database == "" && cfg.FileStorage == "" && !cfg.EnableHTTPS {
+	if cfg.Database == "" && cfg.FileStorage == "" && !cfg.EnableHTTPS && cfg.TrustedSubnet == "" {
 		if configFilename := JSONConfig.DSN; configFilename != "" {
 			JSONErr := models.ReadJSONConfig(&cfg, configFilename)
 			if JSONErr != nil {
 				log.Fatalf("Wrong json format: %+v", JSONErr)
-				//log.Println(JSONErr)
 			}
 		}
 	}

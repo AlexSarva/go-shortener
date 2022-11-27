@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package demo;
+
+option go_package = "go-shortener/proto";
+
+import "google/protobuf/empty.proto";
+
+message OriginalURL {
+  string url = 1;
+}
+
+message ShortURL {
+  string url = 1;
+}
+
+message ShortURLRequest {
+  OriginalURL original_url = 1;
+}
+
+message ShortURLResponse {
+  ShortURL short_url = 1;
+}
+
+message OriginalURLRequest {
+  ShortURL short_url = 1;
+}
+
+message OriginalURLResponse {
+  OriginalURL original_url = 1;
+}
+
+message PingResponse {
+  bool status = 1;
+}
+
+message UserURL {
+  string short_url = 1;
+  string original_url = 2;
+}
+
+message AllURLsResponse {
+  repeated UserURL user_urls = 1;
+}
+
+message OriginalUrlElement {
+  string correlation_id = 1;
+  string original_url = 2;
+}
+
+message CorrelationRequest {
+  repeated OriginalUrlElement original_urls = 1;
+}
+
+message ShortUrlElement {
+  string correlation_id = 1;
+  string short_url = 2;
+}
+
+message CorrelationResponse {
+  repeated ShortUrlElement short_urls = 1;
+}
+
+message DeleteRequest {
+  repeated ShortURL short_urls = 1;
+}
+
+message DeleteResponse {
+  bool status = 1;
+}
+
+message Stata {
+  int32 urls_cnt = 1;
+  int32 users_cnt = 2;
+}
+
+message StataResponse {
+  Stata stata = 1;
+}
+
+service Shortener {
+  rpc GetShortURL(ShortURLRequest) returns (ShortURLResponse);
+  rpc GetOriginalURL(OriginalURLRequest) returns (OriginalURLResponse);
+  rpc Ping(google.protobuf.Empty) returns (PingResponse);
+  rpc GetAllURLs(google.protobuf.Empty) returns (AllURLsResponse);
+  rpc Batch(CorrelationRequest) returns (CorrelationResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+  rpc Stata(google.protobuf.Empty) returns (StataResponse);
+}

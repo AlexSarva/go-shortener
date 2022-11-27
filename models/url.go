@@ -43,3 +43,8 @@ type DeleteURL struct {
 	UserID string
 	URLs   []string
 }
+
+type SystemStat struct {
+	URLsCnt  int `json:"urls" db:"urls_cnt"`
+	UsersCnt int `json:"users" db:"users_cnt"`
+}

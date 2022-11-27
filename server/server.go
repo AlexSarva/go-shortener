@@ -5,18 +5,25 @@ import (
 	"AlexSarva/go-shortener/handlers"
 	"AlexSarva/go-shortener/internal/app"
 	"AlexSarva/go-shortener/models"
+	"AlexSarva/go-shortener/proto/grpcserver"
 	"context"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	pb "AlexSarva/go-shortener/proto"
+
+	"google.golang.org/grpc"
 )
 
 // MyServer implementation of custom server
 type MyServer struct {
 	httpServer *http.Server
+	grpcServer *grpc.Server
 }
 
 // NewMyServer Initializing new server instance
@@ -25,12 +32,23 @@ func NewMyServer(database *app.Database, deleteCh chan models.DeleteURL) *MyServ
 	cfg := constant.GlobalContainer.Get("server-config").(models.Config)
 
 	handler := handlers.MyHandler(database, deleteCh)
-	server := http.Server{
+	httpServer := http.Server{
 		Addr:    cfg.ServerAddress,
 		Handler: handler,
 	}
+
+	// создаём gRPC-сервер без зарегистрированной службы
+	serviceRPC := grpc.NewServer()
+	// регистрируем сервис
+
+	pb.RegisterShortenerServer(serviceRPC, &grpcserver.ShortenerServer{
+		Database: database,
+		DelChan:  deleteCh,
+	})
+
 	return &MyServer{
-		httpServer: &server,
+		httpServer: &httpServer,
+		grpcServer: serviceRPC,
 	}
 }
 
@@ -52,12 +70,24 @@ func (a *MyServer) Run() error {
 		// получили сигнал os.Interrupt, запускаем процедуру graceful shutdown
 		if err := a.httpServer.Shutdown(context.Background()); err != nil {
 			// ошибки закрытия Listener
-			log.Printf("HTTP server Shutdown: %v", err)
+			log.Printf("Server Shutdown: %v", err)
 		}
 		// сообщаем основному потоку,
 		// что все сетевые соединения обработаны и закрыты
 		close(idleConnsClosed)
 	}()
+
+	// определяем порт для сервера
+	listenRPC, listenRPCErr := net.Listen("tcp", ":3200")
+	if listenRPCErr != nil {
+		log.Fatal(listenRPCErr)
+	}
+
+	go func(cfg net.Listener) {
+		if err := a.grpcServer.Serve(cfg); err != http.ErrServerClosed {
+			log.Fatalf("Failed to listen and serve: %+v", err)
+		}
+	}(listenRPC)
 
 	if cfg.EnableHTTPS {
 		log.Printf("Web-server started at https://%s", addr)
